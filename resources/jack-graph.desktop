@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Jack Graph
+Comment=JACK and ALSA port connection manager
+Exec=jack-graph
+Icon=audio-card
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Midi;
+Keywords=audio;JACK;ALSA;connections;
