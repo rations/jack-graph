@@ -5,11 +5,12 @@
 
 GraphCanvas::GraphCanvas()
     : m_zoom(1.0), m_offset_x(20), m_offset_y(20),
-      m_is_dragging(false), m_is_panning(false),
-      m_drag_source(nullptr),
+      m_is_dragging(false), m_is_panning(false), m_is_moving_box(false),
+      m_drag_source(nullptr), m_moving_box(nullptr),
       m_drag_start_x(0), m_drag_start_y(0),
       m_drag_current_x(0), m_drag_current_y(0),
-      m_pan_start_x(0), m_pan_start_y(0) {
+      m_pan_start_x(0), m_pan_start_y(0),
+      m_box_move_offset_x(0), m_box_move_offset_y(0) {
     add_events(Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK |
                Gdk::POINTER_MOTION_MASK | Gdk::SCROLL_MASK);
 }
@@ -19,6 +20,7 @@ GraphCanvas::~GraphCanvas() = default;
 void GraphCanvas::clear() {
     m_nodes.clear();
     m_connections.clear();
+    m_client_boxes.clear();
     queue_draw();
 }
 
@@ -31,8 +33,12 @@ void GraphCanvas::add_connection(std::shared_ptr<Connection> conn) {
 }
 
 void GraphCanvas::remove_all() {
+    for (const auto& box : m_client_boxes) {
+        m_saved_positions[box.client_name] = {box.x, box.y};
+    }
     m_nodes.clear();
     m_connections.clear();
+    m_client_boxes.clear();
     queue_draw();
 }
 
@@ -41,56 +47,76 @@ void GraphCanvas::set_zoom(double zoom) {
     queue_draw();
 }
 
-void GraphCanvas::layout() {
-    struct ClientGroup {
-        std::vector<std::shared_ptr<Node>> outputs;
-        std::vector<std::shared_ptr<Node>> inputs;
-    };
+void GraphCanvas::build_client_boxes() {
+    m_client_boxes.clear();
 
-    std::map<std::string, ClientGroup> clients;
+    std::map<std::string, std::unique_ptr<ClientBox>> boxes;
 
     for (auto& node : m_nodes) {
-        if (!node->client_name.empty()) {
-            clients[node->client_name];
-            if (node->direction == PortDirection::OUTPUT) {
-                clients[node->client_name].outputs.push_back(node);
-            } else {
-                clients[node->client_name].inputs.push_back(node);
-            }
+        std::string cname = node->client_name;
+        if (cname.empty()) continue;
+
+        if (boxes.find(cname) == boxes.end()) {
+            boxes[cname] = std::make_unique<ClientBox>(cname, node->is_alsa);
+        }
+        boxes[cname]->add_port(node);
+    }
+
+    for (auto& [name, box] : boxes) {
+        m_client_boxes.push_back(std::move(*box));
+    }
+}
+
+void GraphCanvas::layout(bool preserve_positions) {
+    if (preserve_positions) {
+        for (const auto& box : m_client_boxes) {
+            m_saved_positions[box.client_name] = {box.x, box.y};
         }
     }
 
-    double left_x = m_offset_x;
-    double right_x = m_offset_x + COLUMN_GAP;
+    build_client_boxes();
+
+    double x = m_offset_x;
     double y = m_offset_y;
     double max_y = y;
 
-    for (auto& [name, group] : clients) {
-        double client_y = y;
-
-        for (auto& node : group.outputs) {
-            node->x = left_x;
-            node->y = client_y;
-            node->width = NODE_WIDTH;
-            node->height = NODE_HEIGHT;
-            client_y += ROW_GAP;
+    for (auto& box : m_client_boxes) {
+        auto it = m_saved_positions.find(box.client_name);
+        if (it != m_saved_positions.end()) {
+            box.x = it->second.x;
+            box.y = it->second.y;
+        } else {
+            box.x = x;
+            box.y = y;
         }
 
-        double input_y = y;
-        for (auto& node : group.inputs) {
-            node->x = right_x;
-            node->y = input_y;
-            node->width = NODE_WIDTH;
-            node->height = NODE_HEIGHT;
-            input_y += ROW_GAP;
+        for (size_t i = 0; i < box.inputs.size(); ++i) {
+            box.inputs[i]->x = box.x + ClientBox::SIDE_PAD;
+            box.inputs[i]->y = box.y + ClientBox::HEADER_HEIGHT + ClientBox::PORT_PAD +
+                                i * (ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD);
+            box.inputs[i]->width = ClientBox::COL_WIDTH;
+            box.inputs[i]->height = ClientBox::PORT_HEIGHT;
         }
 
-        y = std::max(client_y, input_y) + ROW_GAP;
+        for (size_t i = 0; i < box.outputs.size(); ++i) {
+            box.outputs[i]->x = box.x + ClientBox::SIDE_PAD + ClientBox::COL_WIDTH + ClientBox::SIDE_PAD;
+            box.outputs[i]->y = box.y + ClientBox::HEADER_HEIGHT + ClientBox::PORT_PAD +
+                               i * (ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD);
+            box.outputs[i]->width = ClientBox::COL_WIDTH;
+            box.outputs[i]->height = ClientBox::PORT_HEIGHT;
+        }
+
+        y += box.height + ROW_GAP;
         max_y = std::max(max_y, y);
     }
 
-    double canvas_width = right_x + NODE_WIDTH + m_offset_x * 2;
-    double canvas_height = max_y + m_offset_x * 2;
+    double max_box_width = 0;
+    for (const auto& box : m_client_boxes) {
+        max_box_width = std::max(max_box_width, box.width);
+    }
+
+    double canvas_width = x + max_box_width + m_offset_x * 2 + BOX_GAP;
+    double canvas_height = max_y + m_offset_y * 2;
 
     auto parent = get_parent();
     if (parent) {
@@ -103,7 +129,7 @@ void GraphCanvas::layout() {
 }
 
 bool GraphCanvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
-    cr->set_source_rgb(0.92, 0.93, 0.95);
+    cr->set_source_rgb(0.15, 0.15, 0.18);
     cr->paint();
 
     cr->save();
@@ -113,8 +139,8 @@ bool GraphCanvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
         draw_connection_line(cr, *conn);
     }
 
-    for (auto& node : m_nodes) {
-        draw_node(cr, *node);
+    for (const auto& box : m_client_boxes) {
+        draw_client_box(cr, box);
     }
 
     if (m_is_dragging && m_drag_source) {
@@ -125,22 +151,14 @@ bool GraphCanvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
     return true;
 }
 
-void GraphCanvas::draw_node(const Cairo::RefPtr<Cairo::Context>& cr, const Node& node) {
-    double x = node.x;
-    double y = node.y;
-    double w = node.width;
-    double h = node.height;
+void GraphCanvas::draw_client_box(const Cairo::RefPtr<Cairo::Context>& cr, const ClientBox& box) {
+    double x = box.x;
+    double y = box.y;
+    double w = box.width;
+    double h = box.height;
+    double radius = 6;
 
-    double radius = 4;
-
-    double r, g, b;
-    if (node.type == PortType::AUDIO) {
-        r = 0.25; g = 0.45; b = 0.85;
-    } else {
-        r = 0.20; g = 0.70; b = 0.35;
-    }
-
-    cr->set_source_rgba(r, g, b, 0.10);
+    cr->set_source_rgba(0.22, 0.22, 0.26, 0.95);
     cr->move_to(x + radius, y);
     cr->line_to(x + w - radius, y);
     cr->arc(x + w - radius, y + radius, radius, -M_PI / 2, 0);
@@ -153,7 +171,7 @@ void GraphCanvas::draw_node(const Cairo::RefPtr<Cairo::Context>& cr, const Node&
     cr->close_path();
     cr->fill();
 
-    cr->set_source_rgba(r, g, b, 0.85);
+    cr->set_source_rgba(0.35, 0.35, 0.40, 0.8);
     cr->set_line_width(1.5);
     cr->move_to(x + radius, y);
     cr->line_to(x + w - radius, y);
@@ -167,23 +185,82 @@ void GraphCanvas::draw_node(const Cairo::RefPtr<Cairo::Context>& cr, const Node&
     cr->close_path();
     cr->stroke();
 
-    double port_x = (node.direction == PortDirection::OUTPUT) ? x + w : x;
-    double port_y = y + h / 2;
-    cr->arc(port_x, port_y, PORT_RADIUS, 0, 2 * M_PI);
+    cr->move_to(x, y + ClientBox::HEADER_HEIGHT);
+    cr->line_to(x + w, y + ClientBox::HEADER_HEIGHT);
+    cr->set_source_rgba(0.35, 0.35, 0.40, 0.5);
+    cr->set_line_width(1.0);
+    cr->stroke();
+
+    cr->set_source_rgba(0.90, 0.90, 0.92, 1.0);
+    Pango::FontDescription header_font;
+    header_font.set_size(11 * Pango::SCALE);
+    header_font.set_weight(Pango::WEIGHT_BOLD);
+    auto header_layout = create_pango_layout(box.client_name);
+    header_layout->set_font_description(header_font);
+
+    int hw, hh;
+    header_layout->get_pixel_size(hw, hh);
+    cr->move_to(x + (w - hw) / 2, y + (ClientBox::HEADER_HEIGHT - hh) / 2);
+    header_layout->show_in_cairo_context(cr);
+
+    double in_x = x + ClientBox::SIDE_PAD;
+    double out_x = x + ClientBox::SIDE_PAD + ClientBox::COL_WIDTH + ClientBox::SIDE_PAD;
+    double port_y = y + ClientBox::HEADER_HEIGHT + ClientBox::PORT_PAD;
+
+    for (const auto& node : box.inputs) {
+        draw_port(cr, *node, in_x, port_y, false);
+        port_y += ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD;
+    }
+
+    port_y = y + ClientBox::HEADER_HEIGHT + ClientBox::PORT_PAD;
+    for (const auto& node : box.outputs) {
+        draw_port(cr, *node, out_x, port_y, true);
+        port_y += ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD;
+    }
+}
+
+void GraphCanvas::draw_port(const Cairo::RefPtr<Cairo::Context>& cr, const Node& node, double x, double y, bool is_output) {
+    double w = ClientBox::COL_WIDTH;
+    double h = ClientBox::PORT_HEIGHT;
+    double radius = 3;
+
+    double r, g, b;
+    if (node.type == PortType::AUDIO) {
+        r = 0.25; g = 0.45; b = 0.85;
+    } else {
+        r = 0.20; g = 0.70; b = 0.35;
+    }
+
+    cr->set_source_rgba(r, g, b, 0.12);
+    cr->move_to(x + radius, y);
+    cr->line_to(x + w - radius, y);
+    cr->arc(x + w - radius, y + radius, radius, -M_PI / 2, 0);
+    cr->line_to(x + w, y + h - radius);
+    cr->arc(x + w - radius, y + h - radius, radius, 0, M_PI / 2);
+    cr->line_to(x + radius, y + h);
+    cr->arc(x + radius, y + h - radius, radius, M_PI / 2, M_PI);
+    cr->line_to(x, y + radius);
+    cr->arc(x + radius, y + radius, radius, M_PI, 3 * M_PI / 2);
+    cr->close_path();
+    cr->fill();
+
+    double port_dot_x = is_output ? x + w : x;
+    double port_dot_y = y + h / 2;
+    cr->arc(port_dot_x, port_dot_y, PORT_RADIUS, 0, 2 * M_PI);
     cr->set_source_rgba(r, g, b, 0.95);
     cr->fill();
 
-    cr->set_source_rgba(0.15, 0.15, 0.20, 1.0);
+    cr->set_source_rgba(0.80, 0.80, 0.85, 1.0);
     Pango::FontDescription font;
-    font.set_size(10 * Pango::SCALE);
+    font.set_size(9 * Pango::SCALE);
     auto layout = create_pango_layout(node.display_name());
     layout->set_font_description(font);
 
-    int text_w, text_h;
-    layout->get_pixel_size(text_w, text_h);
+    int tw, th;
+    layout->get_pixel_size(tw, th);
 
-    double text_x = x + (w - text_w) / 2;
-    double text_y = y + (h - text_h) / 2;
+    double text_x = is_output ? x + PORT_RADIUS + 4 : x + PORT_RADIUS + 4;
+    double text_y = y + (h - th) / 2;
     cr->move_to(text_x, text_y);
     layout->show_in_cairo_context(cr);
 }
@@ -203,7 +280,7 @@ void GraphCanvas::draw_connection_line(const Cairo::RefPtr<Cairo::Context>& cr, 
     cr->move_to(x1, y1);
     cr->curve_to(cp1x, cp1y, cp2x, cp2y, x2, y2);
 
-    cr->set_source_rgba(0.3, 0.3, 0.35, 0.6);
+    cr->set_source_rgba(0.55, 0.55, 0.60, 0.5);
     cr->set_line_width(2.0);
     cr->stroke();
 }
@@ -223,7 +300,7 @@ void GraphCanvas::draw_drag_preview(const Cairo::RefPtr<Cairo::Context>& cr) {
     cr->move_to(x1, y1);
     cr->curve_to(cp1x, cp1y, cp2x, cp2y, x2, y2);
 
-    cr->set_source_rgba(0.9, 0.3, 0.2, 0.7);
+    cr->set_source_rgba(0.9, 0.5, 0.2, 0.7);
     cr->set_line_width(2.0);
     std::vector<double> dashes = {5, 3};
     cr->set_dash(dashes, 0);
@@ -231,33 +308,37 @@ void GraphCanvas::draw_drag_preview(const Cairo::RefPtr<Cairo::Context>& cr) {
     cr->unset_dash();
 }
 
-std::shared_ptr<Node> GraphCanvas::find_node_at(double x, double y) {
-    for (auto it = m_nodes.rbegin(); it != m_nodes.rend(); ++it) {
-        auto& node = *it;
-        if (x >= node->x && x <= node->x + node->width &&
-            y >= node->y && y <= node->y + node->height) {
-            return node;
+std::shared_ptr<Node> GraphCanvas::find_output_port_at(double x, double y) {
+    for (auto& box : m_client_boxes) {
+        if (x >= box.x && x <= box.x + box.width &&
+            y >= box.y && y <= box.y + box.height) {
+            double local_x = x - box.x;
+            double local_y = y - box.y;
+            return box.find_output_at(local_x, local_y);
         }
     }
     return nullptr;
 }
 
-bool GraphCanvas::is_on_output_port(const Node& node, double x, double y) {
-    if (node.direction != PortDirection::OUTPUT) return false;
-    double px = node.x + node.width;
-    double py = node.y + node.height / 2;
-    double dx = x - px;
-    double dy = y - py;
-    return (dx * dx + dy * dy) <= (PORT_RADIUS + 4) * (PORT_RADIUS + 4);
+std::shared_ptr<Node> GraphCanvas::find_input_port_at(double x, double y) {
+    for (auto& box : m_client_boxes) {
+        if (x >= box.x && x <= box.x + box.width &&
+            y >= box.y && y <= box.y + box.height) {
+            double local_x = x - box.x;
+            double local_y = y - box.y;
+            return box.find_input_at(local_x, local_y);
+        }
+    }
+    return nullptr;
 }
 
-bool GraphCanvas::is_on_input_port(const Node& node, double x, double y) {
-    if (node.direction != PortDirection::INPUT) return false;
-    double px = node.x;
-    double py = node.y + node.height / 2;
-    double dx = x - px;
-    double dy = y - py;
-    return (dx * dx + dy * dy) <= (PORT_RADIUS + 4) * (PORT_RADIUS + 4);
+ClientBox* GraphCanvas::find_box_at(double x, double y) {
+    for (auto& box : m_client_boxes) {
+        if (box.contains(x, y)) {
+            return &box;
+        }
+    }
+    return nullptr;
 }
 
 bool GraphCanvas::on_button_press_event(GdkEventButton* event) {
@@ -265,16 +346,24 @@ bool GraphCanvas::on_button_press_event(GdkEventButton* event) {
         double x = event->x / m_zoom;
         double y = event->y / m_zoom;
 
-        for (auto& node : m_nodes) {
-            if (is_on_output_port(*node, x, y)) {
-                m_drag_source = node;
-                m_drag_start_x = x;
-                m_drag_start_y = y;
-                m_drag_current_x = x;
-                m_drag_current_y = y;
-                m_is_dragging = true;
-                return true;
-            }
+        auto output = find_output_port_at(x, y);
+        if (output) {
+            m_drag_source = output;
+            m_drag_start_x = x;
+            m_drag_start_y = y;
+            m_drag_current_x = x;
+            m_drag_current_y = y;
+            m_is_dragging = true;
+            return true;
+        }
+
+        auto* box = find_box_at(x, y);
+        if (box) {
+            m_is_moving_box = true;
+            m_moving_box = box;
+            m_box_move_offset_x = x - box->x;
+            m_box_move_offset_y = y - box->y;
+            return true;
         }
 
         m_is_panning = true;
@@ -317,22 +406,25 @@ bool GraphCanvas::on_button_release_event(GdkEventButton* event) {
         double x = event->x / m_zoom;
         double y = event->y / m_zoom;
 
-        for (auto& node : m_nodes) {
-            if (node == m_drag_source) continue;
-            if (is_on_input_port(*node, x, y)) {
-                if (m_connect_cb) {
-                    m_connect_cb(m_drag_source->full_name(), node->full_name());
-                }
-
-                auto conn = std::make_shared<Connection>(m_drag_source, node, m_drag_source->type);
-                m_connections.push_back(conn);
-                break;
+        auto target = find_input_port_at(x, y);
+        if (target && target != m_drag_source) {
+            if (m_connect_cb) {
+                m_connect_cb(m_drag_source->full_name(), target->full_name());
             }
+
+            auto conn = std::make_shared<Connection>(m_drag_source, target, m_drag_source->type);
+            m_connections.push_back(conn);
         }
 
         m_is_dragging = false;
         m_drag_source = nullptr;
         queue_draw();
+        return true;
+    }
+
+    if (m_is_moving_box) {
+        m_is_moving_box = false;
+        m_moving_box = nullptr;
         return true;
     }
 
@@ -348,6 +440,27 @@ bool GraphCanvas::on_motion_notify_event(GdkEventMotion* event) {
     if (m_is_dragging) {
         m_drag_current_x = event->x / m_zoom;
         m_drag_current_y = event->y / m_zoom;
+        queue_draw();
+        return true;
+    }
+
+    if (m_is_moving_box && m_moving_box) {
+        double x = event->x / m_zoom;
+        double y = event->y / m_zoom;
+        m_moving_box->x = x - m_box_move_offset_x;
+        m_moving_box->y = y - m_box_move_offset_y;
+
+        for (size_t i = 0; i < m_moving_box->inputs.size(); ++i) {
+            m_moving_box->inputs[i]->x = m_moving_box->x + ClientBox::SIDE_PAD;
+            m_moving_box->inputs[i]->y = m_moving_box->y + ClientBox::HEADER_HEIGHT +
+                                          ClientBox::PORT_PAD + i * (ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD);
+        }
+        for (size_t i = 0; i < m_moving_box->outputs.size(); ++i) {
+            m_moving_box->outputs[i]->x = m_moving_box->x + ClientBox::SIDE_PAD +
+                                         ClientBox::COL_WIDTH + ClientBox::SIDE_PAD;
+            m_moving_box->outputs[i]->y = m_moving_box->y + ClientBox::HEADER_HEIGHT +
+                                         ClientBox::PORT_PAD + i * (ClientBox::PORT_HEIGHT + ClientBox::PORT_PAD);
+        }
         queue_draw();
         return true;
     }

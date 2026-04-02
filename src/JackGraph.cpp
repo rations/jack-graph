@@ -111,8 +111,11 @@ void JackGraph::refresh_ports() {
     m_canvas.remove_all();
 
     if (m_jack_connected) {
+        std::string our_client = m_jack.get_actual_client_name();
+        std::cerr << "JACK client name: " << our_client << std::endl;
         auto ports = m_jack.get_ports();
         for (const auto& p : ports) {
+            if (p.client == our_client) continue;
             auto node = std::make_shared<Node>(
                 p.name,
                 p.is_audio ? PortType::AUDIO : PortType::MIDI,
@@ -148,7 +151,7 @@ void JackGraph::refresh_ports() {
         }
     }
 
-    m_canvas.layout();
+    m_canvas.layout(true);
     update_status_bar();
 }
 

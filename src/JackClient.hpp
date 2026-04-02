@@ -16,6 +16,7 @@ public:
     bool connect(const std::string& client_name = "jack-graph");
     void disconnect();
     bool is_connected() const { return m_client != nullptr; }
+    std::string get_actual_client_name() const;
 
     struct PortInfo {
         std::string name;
@@ -39,6 +40,8 @@ public:
 
     jack_nframes_t get_buffer_size() const;
     jack_nframes_t get_sample_rate() const;
+
+    std::string get_client_name() const;
 
     void set_port_callback(PortCallback cb) { m_port_callback = std::move(cb); }
 

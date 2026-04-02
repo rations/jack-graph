@@ -4,7 +4,7 @@ LDFLAGS = $(shell pkg-config --libs gtkmm-3.0 jack alsa)
 
 SOURCES = src/main.cpp src/JackGraph.cpp src/JackClient.cpp \
           src/AlsaClient.cpp src/GraphCanvas.cpp src/Node.cpp \
-          src/Connection.cpp src/Config.cpp
+          src/Connection.cpp src/Config.cpp src/ClientBox.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 TARGET = jack-graph
 

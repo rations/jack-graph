@@ -95,6 +95,11 @@ jack_nframes_t JackClient::get_sample_rate() const {
     return jack_get_sample_rate(m_client);
 }
 
+std::string JackClient::get_actual_client_name() const {
+    if (!m_client) return {};
+    return jack_get_client_name(m_client);
+}
+
 void JackClient::scan_ports() {
     if (!m_client) return;
 
