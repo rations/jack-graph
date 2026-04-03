@@ -1,4 +1,5 @@
 #include "SettingsDialog.hpp"
+#include <iostream>
 #include <sstream>
 #include <unistd.h>
 
@@ -8,7 +9,8 @@ SettingsDialog::SettingsDialog(Gtk::Window& parent, JackServerControl& server, C
       m_content_box(Gtk::ORIENTATION_VERTICAL, 10),
       m_server_frame("JACK Server"),
       m_server_box(Gtk::ORIENTATION_HORIZONTAL, 10),
-      m_start_stop_btn("Start"),
+      m_start_btn("Start"),
+      m_stop_btn("Stop"),
       m_audio_frame("Audio"),
       m_interface_label("Interface:"),
       m_sample_rate_label("Sample Rate:"),
@@ -41,7 +43,8 @@ void SettingsDialog::build_ui() {
     content_area->pack_start(m_content_box, true, true, 10);
 
     m_server_box.pack_start(m_server_status_label, true, true, 0);
-    m_server_box.pack_start(m_start_stop_btn, false, false, 0);
+    m_server_box.pack_start(m_start_btn, false, false, 0);
+    m_server_box.pack_start(m_stop_btn, false, false, 0);
     m_server_frame.add(m_server_box);
     m_content_box.pack_start(m_server_frame, false, false, 0);
 
@@ -98,7 +101,8 @@ void SettingsDialog::build_ui() {
     m_button_box.pack_start(m_close_btn, false, false, 0);
     m_content_box.pack_start(m_button_box, false, false, 0);
 
-    m_start_stop_btn.signal_clicked().connect(sigc::mem_fun(*this, &SettingsDialog::on_start_stop));
+    m_start_btn.signal_clicked().connect(sigc::mem_fun(*this, &SettingsDialog::on_start));
+    m_stop_btn.signal_clicked().connect(sigc::mem_fun(*this, &SettingsDialog::on_stop));
     m_apply_btn.signal_clicked().connect(sigc::mem_fun(*this, &SettingsDialog::on_apply));
 }
 
@@ -115,18 +119,42 @@ void SettingsDialog::populate_devices() {
     }
 }
 
-void SettingsDialog::load_current_settings() {
-    bool running = m_server.is_running();
-    m_server_status_label.set_text("Status: " + m_server.get_status());
-    m_start_stop_btn.set_label(running ? "Stop" : "Start");
+void SettingsDialog::update_server_status(bool running) {
+    m_server_status_label.set_text(running ? "Status: Running" : "Status: Stopped");
+    m_start_btn.set_sensitive(!running);
+    m_stop_btn.set_sensitive(running);
+}
 
-    m_interface_combo.set_active_id(m_config.get_interface());
-    m_sample_rate_combo.set_active_id(std::to_string(m_config.get_sample_rate()));
-    m_frames_combo.set_active_id(std::to_string(m_config.get_frames_per_period()));
-    m_periods_combo.set_active_id(std::to_string(m_config.get_periods_per_buffer()));
+void SettingsDialog::load_current_settings() {
+    update_server_status(m_server.is_running());
+
+    std::string iface = m_config.get_interface();
+    if (!iface.empty()) {
+        m_interface_combo.set_active_id(iface);
+    }
+
+    int sr = m_config.get_sample_rate();
+    if (sr > 0) {
+        m_sample_rate_combo.set_active_id(std::to_string(sr));
+    }
+
+    int fpp = m_config.get_frames_per_period();
+    if (fpp > 0) {
+        m_frames_combo.set_active_id(std::to_string(fpp));
+    }
+
+    int ppb = m_config.get_periods_per_buffer();
+    if (ppb > 0) {
+        m_periods_combo.set_active_id(std::to_string(ppb));
+    }
+
     m_realtime_check.set_active(m_config.get_realtime());
     m_sync_check.set_active(m_config.get_synchronous());
-    m_midi_combo.set_active_id(m_config.get_midi_driver());
+
+    std::string midi = m_config.get_midi_driver();
+    if (!midi.empty()) {
+        m_midi_combo.set_active_id(midi);
+    }
 }
 
 void SettingsDialog::on_apply() {
@@ -148,26 +176,44 @@ void SettingsDialog::on_apply() {
     m_config.set_midi_driver(settings.midi_driver);
     m_config.save();
 
-    if (m_server.is_running()) {
-        m_server.stop();
-        usleep(200000);
+    if (m_apply_cb) {
+        m_apply_cb();
     }
+    
+    // Sync button state after apply completes
+    usleep(200000);
+    update_server_status(m_server.is_running());
+}
 
-    bool started = m_server.start(settings);
-    m_server_status_label.set_text("Status: " + m_server.get_status());
-    m_start_stop_btn.set_label(started ? "Stop" : "Start");
+void SettingsDialog::on_start() {
+    std::string iface = m_interface_combo.get_active_id();
+    std::string sr_str = m_sample_rate_combo.get_active_id();
+    std::string fpp_str = m_frames_combo.get_active_id();
+    std::string ppb_str = m_periods_combo.get_active_id();
+    
+    JackSettings settings;
+    settings.interface = iface;
+    settings.sample_rate = std::stoi(sr_str);
+    settings.frames_per_period = std::stoi(fpp_str);
+    settings.periods_per_buffer = std::stoi(ppb_str);
+    settings.realtime = m_realtime_check.get_active();
+    settings.synchronous = m_sync_check.get_active();
+    settings.midi_driver = m_midi_combo.get_active_id();
+
+    update_server_status(true);
+    m_server.start(settings);
 
     if (m_apply_cb) {
         m_apply_cb();
     }
 }
 
-void SettingsDialog::on_start_stop() {
-    if (m_server.is_running()) {
-        m_server.stop();
-        m_server_status_label.set_text("Status: " + m_server.get_status());
-        m_start_stop_btn.set_label("Start");
-    } else {
-        on_apply();
+void SettingsDialog::on_stop() {
+    update_server_status(false);
+    m_server.stop();
+
+    if (m_apply_cb) {
+        m_apply_cb();
     }
 }
+

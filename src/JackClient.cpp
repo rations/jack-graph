@@ -15,7 +15,7 @@ bool JackClient::connect(const std::string& client_name) {
     }
 
     jack_status_t status;
-    m_client = jack_client_open(client_name.c_str(), JackNullOption, &status);
+    m_client = jack_client_open(client_name.c_str(), (jack_options_t)(JackNullOption | JackNoStartServer), &status);
     if (!m_client) {
         return false;
     }

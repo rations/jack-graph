@@ -17,8 +17,10 @@ private:
     void build_ui();
     void populate_devices();
     void load_current_settings();
+    void update_server_status(bool running);
     void on_apply();
-    void on_start_stop();
+    void on_start();
+    void on_stop();
 
     JackServerControl& m_server;
     Config& m_config;
@@ -28,7 +30,8 @@ private:
     Gtk::Frame m_server_frame;
     Gtk::Box m_server_box;
     Gtk::Label m_server_status_label;
-    Gtk::Button m_start_stop_btn;
+    Gtk::Button m_start_btn;
+    Gtk::Button m_stop_btn;
 
     Gtk::Frame m_audio_frame;
     Gtk::Grid m_audio_grid;

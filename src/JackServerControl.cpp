@@ -1,4 +1,5 @@
 #include "JackServerControl.hpp"
+#include <jack/jack.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -19,16 +20,13 @@ JackServerControl::~JackServerControl() {
 }
 
 bool JackServerControl::is_running() const {
-    if (m_jack_pid > 0) {
-        return kill(m_jack_pid, 0) == 0;
+    // This is the standard reliable check used by all jack GUIs
+    jack_client_t *test = jack_client_open("status_check", JackNoStartServer, NULL);
+    if (test) {
+        jack_client_close(test);
+        return true;
     }
-
-    FILE* fp = popen("pgrep -x jackd 2>/dev/null", "r");
-    if (!fp) return false;
-    char buf[64] = {0};
-    fgets(buf, sizeof(buf), fp);
-    pclose(fp);
-    return strlen(buf) > 0;
+    return false;
 }
 
 std::string JackServerControl::get_status() const {
@@ -92,20 +90,19 @@ bool JackServerControl::start(const JackSettings& settings) {
 }
 
 bool JackServerControl::stop() {
-    if (m_jack_pid > 0) {
-        kill(m_jack_pid, SIGTERM);
-        for (int i = 0; i < 10; ++i) {
-            if (kill(m_jack_pid, 0) != 0) break;
-            usleep(100000);
-        }
-        m_jack_pid = 0;
+    const pid_t old_pid = m_jack_pid;
+    
+    // Clear m_jack_pid INSTANTLY BEFORE killing
+    m_jack_pid = 0;
+
+    if (old_pid > 0) {
+        kill(old_pid, SIGTERM);
     }
 
     FILE* fp = popen("pkill -x jackd 2>/dev/null", "r");
     if (fp) pclose(fp);
-
-    usleep(500000);
-    return !is_running();
+    
+    return true;
 }
 
 std::string JackServerControl::list_audio_devices() const {

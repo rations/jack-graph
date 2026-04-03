@@ -7,9 +7,9 @@ namespace fs = std::filesystem;
 
 Config::Config()
     : m_window_width(1200), m_window_height(800),
-      m_zoom(1.0), m_buffer_size(0), m_sample_rate(48000),
-      m_interface("hw:0"), m_frames_per_period(1024), m_periods_per_buffer(2),
-      m_realtime(true), m_synchronous(false), m_midi_driver("none") {
+      m_zoom(1.0), m_buffer_size(0), m_sample_rate(0),
+      m_interface(""), m_frames_per_period(0), m_periods_per_buffer(0),
+      m_realtime(false), m_synchronous(false), m_midi_driver("") {
 }
 
 Config::~Config() {
