@@ -12,15 +12,6 @@ JackGraph::JackGraph()
     setup_ui();
     setup_menu();
 
-    m_jack_connected = m_jack.connect("jack-graph");
-    if (m_jack_connected) {
-        m_jack.set_port_callback([this]() {
-            Glib::signal_idle().connect_once([this]() {
-                refresh_ports();
-            });
-        });
-    }
-
     m_alsa_connected = m_alsa.connect("jack-graph");
 
     refresh_ports();
@@ -206,18 +197,21 @@ void JackGraph::on_menu_zoom_normal() {
 void JackGraph::on_menu_settings() {
     SettingsDialog dialog(*this, m_server, m_config);
     dialog.set_apply_callback([this]() {
+        bool server_running = m_server.is_running();
         if (m_jack.is_connected()) {
             m_jack.disconnect();
             m_jack_connected = false;
         }
-        m_jack_connected = m_jack.connect("jack-graph");
-        if (m_jack_connected) {
-            m_jack.set_port_callback([this]() {
-                Glib::signal_idle().connect_once([this]() {
-                    refresh_ports();
+        if (server_running) {
+            m_jack_connected = m_jack.connect("jack-graph");
+            if (m_jack_connected) {
+                m_jack.set_port_callback([this]() {
+                    Glib::signal_idle().connect_once([this]() {
+                        refresh_ports();
+                    });
                 });
-            });
-            refresh_ports();
+                refresh_ports();
+            }
         }
         update_status_bar();
     });

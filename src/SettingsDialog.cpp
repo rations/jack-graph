@@ -120,13 +120,13 @@ void SettingsDialog::load_current_settings() {
     m_server_status_label.set_text("Status: " + m_server.get_status());
     m_start_stop_btn.set_label(running ? "Stop" : "Start");
 
-    m_realtime_check.set_active(true);
-    m_sync_check.set_active(false);
-
-    m_sample_rate_combo.set_active_id("48000");
-    m_frames_combo.set_active_id("128");
-    m_periods_combo.set_active_id("2");
-    m_midi_combo.set_active_id("none");
+    m_interface_combo.set_active_id(m_config.get_interface());
+    m_sample_rate_combo.set_active_id(std::to_string(m_config.get_sample_rate()));
+    m_frames_combo.set_active_id(std::to_string(m_config.get_frames_per_period()));
+    m_periods_combo.set_active_id(std::to_string(m_config.get_periods_per_buffer()));
+    m_realtime_check.set_active(m_config.get_realtime());
+    m_sync_check.set_active(m_config.get_synchronous());
+    m_midi_combo.set_active_id(m_config.get_midi_driver());
 }
 
 void SettingsDialog::on_apply() {
@@ -138,6 +138,15 @@ void SettingsDialog::on_apply() {
     settings.realtime = m_realtime_check.get_active();
     settings.synchronous = m_sync_check.get_active();
     settings.midi_driver = m_midi_combo.get_active_id();
+
+    m_config.set_interface(settings.interface);
+    m_config.set_sample_rate(settings.sample_rate);
+    m_config.set_frames_per_period(settings.frames_per_period);
+    m_config.set_periods_per_buffer(settings.periods_per_buffer);
+    m_config.set_realtime(settings.realtime);
+    m_config.set_synchronous(settings.synchronous);
+    m_config.set_midi_driver(settings.midi_driver);
+    m_config.save();
 
     if (m_server.is_running()) {
         m_server.stop();
@@ -158,9 +167,6 @@ void SettingsDialog::on_start_stop() {
         m_server.stop();
         m_server_status_label.set_text("Status: " + m_server.get_status());
         m_start_stop_btn.set_label("Start");
-        if (m_apply_cb) {
-            m_apply_cb();
-        }
     } else {
         on_apply();
     }

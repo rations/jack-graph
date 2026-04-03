@@ -68,14 +68,6 @@ bool JackServerControl::start(const JackSettings& settings) {
         args.push_back("-n");
         args.push_back(std::to_string(settings.periods_per_buffer));
 
-        if (settings.realtime) {
-            args.push_back("-R");
-        }
-
-        if (settings.synchronous) {
-            args.push_back("-s");
-        }
-
         if (settings.midi_driver == "seq") {
             args.push_back("-X");
             args.push_back("seq");
@@ -118,7 +110,7 @@ bool JackServerControl::stop() {
 
 std::string JackServerControl::list_audio_devices() const {
     std::string result;
-    FILE* fp = popen("aplay -l 2>/dev/null | grep '^card' | sed 's/.*: //;s/:.*//'", "r");
+    FILE* fp = popen("aplay -l 2>/dev/null | grep 'card [0-9]' | sed 's/card \\([0-9]\\):.*device \\([0-9]\\):.*/hw:\\1,\\2/' | sort | uniq", "r");
     if (!fp) return result;
 
     char buf[256];
