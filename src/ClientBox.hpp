@@ -26,5 +26,6 @@ struct ClientBox {
     static constexpr double PORT_PAD = 4;
     static constexpr double SIDE_PAD = 12;
     static constexpr double COL_WIDTH = 140;
+    static constexpr double PORT_BG_WIDTH = 180;
     static constexpr double MIN_WIDTH = 180;
 };

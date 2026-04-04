@@ -220,7 +220,7 @@ void GraphCanvas::draw_client_box(const Cairo::RefPtr<Cairo::Context>& cr, const
 }
 
 void GraphCanvas::draw_port(const Cairo::RefPtr<Cairo::Context>& cr, const Node& node, double x, double y, bool is_output) {
-    double w = ClientBox::COL_WIDTH;
+    double w = ClientBox::PORT_BG_WIDTH;
     double h = ClientBox::PORT_HEIGHT;
     double radius = 3;
 
@@ -231,20 +231,21 @@ void GraphCanvas::draw_port(const Cairo::RefPtr<Cairo::Context>& cr, const Node&
         r = 0.20; g = 0.70; b = 0.35;
     }
 
+    double bg_x = is_output ? x - (ClientBox::PORT_BG_WIDTH - ClientBox::COL_WIDTH) : x;
     cr->set_source_rgba(r, g, b, 0.12);
-    cr->move_to(x + radius, y);
-    cr->line_to(x + w - radius, y);
-    cr->arc(x + w - radius, y + radius, radius, -M_PI / 2, 0);
-    cr->line_to(x + w, y + h - radius);
-    cr->arc(x + w - radius, y + h - radius, radius, 0, M_PI / 2);
-    cr->line_to(x + radius, y + h);
-    cr->arc(x + radius, y + h - radius, radius, M_PI / 2, M_PI);
-    cr->line_to(x, y + radius);
-    cr->arc(x + radius, y + radius, radius, M_PI, 3 * M_PI / 2);
+    cr->move_to(bg_x + radius, y);
+    cr->line_to(bg_x + w - radius, y);
+    cr->arc(bg_x + w - radius, y + radius, radius, -M_PI / 2, 0);
+    cr->line_to(bg_x + w, y + h - radius);
+    cr->arc(bg_x + w - radius, y + h - radius, radius, 0, M_PI / 2);
+    cr->line_to(bg_x + radius, y + h);
+    cr->arc(bg_x + radius, y + h - radius, radius, M_PI / 2, M_PI);
+    cr->line_to(bg_x, y + radius);
+    cr->arc(bg_x + radius, y + radius, radius, M_PI, 3 * M_PI / 2);
     cr->close_path();
     cr->fill();
 
-    double port_dot_x = is_output ? x + w : x;
+    double port_dot_x = is_output ? bg_x + w : bg_x;
     double port_dot_y = y + h / 2;
     cr->arc(port_dot_x, port_dot_y, PORT_RADIUS, 0, 2 * M_PI);
     cr->set_source_rgba(r, g, b, 0.95);
@@ -259,7 +260,22 @@ void GraphCanvas::draw_port(const Cairo::RefPtr<Cairo::Context>& cr, const Node&
     int tw, th;
     layout->get_pixel_size(tw, th);
 
-    double text_x = is_output ? x + PORT_RADIUS + 4 : x + PORT_RADIUS + 4;
+    double max_text_width = w - PORT_RADIUS * 2 - 12;
+    if (tw > max_text_width) {
+        std::string truncated = node.display_name();
+        while (tw > max_text_width && !truncated.empty()) {
+            truncated = truncated.substr(0, truncated.size() - 1);
+            layout->set_text(truncated + "...");
+            layout->get_pixel_size(tw, th);
+        }
+    }
+
+    double text_x;
+    if (is_output) {
+        text_x = bg_x + w - PORT_RADIUS - 4 - tw;
+    } else {
+        text_x = bg_x + PORT_RADIUS + 4;
+    }
     double text_y = y + (h - th) / 2;
     cr->move_to(text_x, text_y);
     layout->show_in_cairo_context(cr);

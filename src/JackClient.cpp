@@ -2,7 +2,7 @@
 #include <cstring>
 #include <algorithm>
 
-JackClient::JackClient() : m_client(nullptr) {
+JackClient::JackClient() : m_client(nullptr), m_xrun_count(0) {
 }
 
 JackClient::~JackClient() {
@@ -24,6 +24,7 @@ bool JackClient::connect(const std::string& client_name) {
     jack_set_port_connect_callback(m_client, port_connect_callback, this);
     jack_set_sample_rate_callback(m_client, sample_rate_callback, this);
     jack_set_buffer_size_callback(m_client, buffer_size_callback, this);
+    jack_set_xrun_callback(m_client, xrun_callback, this);
 
     if (jack_activate(m_client)) {
         jack_client_close(m_client);
@@ -177,6 +178,17 @@ int JackClient::buffer_size_callback(jack_nframes_t nframes, void* arg) {
     auto* self = static_cast<JackClient*>(arg);
     if (self && self->m_port_callback) {
         self->m_port_callback();
+    }
+    return 0;
+}
+
+int JackClient::xrun_callback(void* arg) {
+    auto* self = static_cast<JackClient*>(arg);
+    if (self) {
+        self->m_xrun_count++;
+        if (self->m_xrun_callback) {
+            self->m_xrun_callback();
+        }
     }
     return 0;
 }

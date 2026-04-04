@@ -210,6 +210,11 @@ void JackGraph::on_menu_settings() {
                         refresh_ports();
                     });
                 });
+                m_jack.set_xrun_callback([this]() {
+                    Glib::signal_idle().connect_once([this]() {
+                        update_status_bar();
+                    });
+                });
                 refresh_ports();
             }
         }
@@ -239,6 +244,7 @@ void JackGraph::update_status_bar() {
         status += "JACK: connected";
         status += " | Buffer: " + std::to_string(m_jack.get_buffer_size()) + " frames";
         status += " | Rate: " + std::to_string(m_jack.get_sample_rate()) + " Hz";
+        status += " | Xruns: " + std::to_string(m_jack.get_xrun_count());
     } else {
         status += "JACK: not connected";
     }
