@@ -12,13 +12,22 @@ JackGraph::JackGraph()
     setup_ui();
     setup_menu();
 
+    // Connect to JACK if it's already running (system service)
     m_jack_connected = m_jack.connect("jack-graph");
     if (m_jack_connected) {
+        std::cerr << "jack-graph: Connected to running JACK server" << std::endl;
         m_jack.set_port_callback([this]() {
             Glib::signal_idle().connect_once([this]() {
                 refresh_ports();
             });
         });
+        m_jack.set_xrun_callback([this]() {
+            Glib::signal_idle().connect_once([this]() {
+                update_status_bar();
+            });
+        });
+    } else {
+        std::cerr << "jack-graph: JACK not running. Use Settings to start it." << std::endl;
     }
 
     m_alsa_connected = m_alsa.connect("jack-graph");
@@ -93,6 +102,16 @@ void JackGraph::setup_menu() {
     zoom_normal_item->signal_activate().connect(
         sigc::mem_fun(*this, &JackGraph::on_menu_zoom_normal));
     view_menu->append(*zoom_normal_item);
+
+    auto settings_menu = Gtk::manage(new Gtk::Menu());
+    auto settings_item = Gtk::manage(new Gtk::MenuItem("_Settings", true));
+    settings_item->set_submenu(*settings_menu);
+    m_menu_bar.append(*settings_item);
+
+    auto jack_settings_item = Gtk::manage(new Gtk::MenuItem("_JACK Settings", true));
+    jack_settings_item->signal_activate().connect(
+        sigc::mem_fun(*this, &JackGraph::on_menu_settings));
+    settings_menu->append(*jack_settings_item);
 
     auto help_menu = Gtk::manage(new Gtk::Menu());
     auto help_item = Gtk::manage(new Gtk::MenuItem("_Help", true));
@@ -193,6 +212,47 @@ void JackGraph::on_menu_zoom_normal() {
     m_canvas.set_zoom(1.0);
 }
 
+void JackGraph::on_menu_settings() {
+    SettingsDialog dialog(*this, m_server, m_config);
+    
+    // Callback for Start (reconnect after server starts)
+    dialog.set_apply_callback([this]() {
+        if (m_jack.is_connected()) {
+            m_jack.disconnect();
+            m_jack_connected = false;
+        }
+        if (m_server.is_running()) {
+            m_jack_connected = m_jack.connect("jack-graph");
+            if (m_jack_connected) {
+                m_jack.set_port_callback([this]() {
+                    Glib::signal_idle().connect_once([this]() {
+                        refresh_ports();
+                    });
+                });
+                m_jack.set_xrun_callback([this]() {
+                    Glib::signal_idle().connect_once([this]() {
+                        update_status_bar();
+                    });
+                });
+                refresh_ports();
+            }
+        }
+        update_status_bar();
+    });
+    
+    // Callback for Stop (just disconnect, don't reconnect)
+    dialog.set_disconnect_callback([this]() {
+        if (m_jack.is_connected()) {
+            m_jack.disconnect();
+            m_jack_connected = false;
+        }
+        refresh_ports();
+        update_status_bar();
+    });
+    
+    dialog.run();
+}
+
 void JackGraph::on_menu_about() {
     Gtk::AboutDialog dialog;
     dialog.set_program_name("Jack Graph");
@@ -214,9 +274,12 @@ void JackGraph::update_status_bar() {
         status += "JACK: connected";
         status += " | Buffer: " + std::to_string(m_jack.get_buffer_size()) + " frames";
         status += " | Rate: " + std::to_string(m_jack.get_sample_rate()) + " Hz";
+        status += " | Xruns: " + std::to_string(m_jack.get_xrun_count());
     } else {
         status += "JACK: not connected";
     }
+
+    status += " | Server: " + m_server.get_status();
 
     if (m_alsa_connected) {
         status += " | ALSA MIDI: connected";

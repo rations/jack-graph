@@ -10,6 +10,8 @@
 #include "Node.hpp"
 #include "Connection.hpp"
 #include "Config.hpp"
+#include "JackServerControl.hpp"
+#include "SettingsDialog.hpp"
 
 class JackGraph : public Gtk::Window {
 public:
@@ -32,6 +34,7 @@ private:
     void on_menu_zoom_in();
     void on_menu_zoom_out();
     void on_menu_zoom_normal();
+    void on_menu_settings();
     void on_menu_about();
     void on_menu_quit();
 
@@ -47,6 +50,7 @@ private:
     JackClient m_jack;
     AlsaClient m_alsa;
     Config m_config;
+    JackServerControl m_server;
 
     bool m_jack_connected;
     bool m_alsa_connected;
