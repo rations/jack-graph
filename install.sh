@@ -1,22 +1,23 @@
 #!/bin/bash
 
-# Jack Graph User Installation Script
-# Installs jack-graph binary and desktop entry for current user
-
 set -e
 
-echo "Installing Jack Graph for user: $USER"
+# Ensure script is run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run this script with sudo:"
+  echo "  sudo ./install.sh"
+  exit 1
+fi
 
-# Create directories if they don't exist
-mkdir -p ~/.local/bin
-mkdir -p ~/.local/share/applications
+echo "Installing Jack Graph system-wide..."
 
-# Copy binary to user bin directory
-cp jack-graph ~/.local/bin/
-chmod +x ~/.local/bin/jack-graph
+# Install binary
+cp jack-graph /usr/local/bin/
+chmod +x /usr/local/bin/jack-graph
 
-# Copy desktop entry to user applications directory
-cp resources/jack-graph.desktop ~/.local/share/applications/
+# Install desktop entry
+cp resources/jack-graph.desktop /usr/share/applications/
+
 
 echo "Installation complete!"
 echo "You can now run 'jack-graph' from the command line"
