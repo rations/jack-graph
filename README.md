@@ -46,8 +46,8 @@ tar -xf jack-graph.tar.gz
 cd jack-graph
 
 # Make install script executable and run it
-chmod +x install.sh
-./install.sh
+sudo chmod +x install.sh
+sudo ./install.sh
 ```
 
 ## Technologies
