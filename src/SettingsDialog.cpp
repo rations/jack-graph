@@ -19,7 +19,7 @@ SettingsDialog::SettingsDialog(Gtk::Window& parent, JackServerControl& server, C
       m_options_frame("Options"),
       m_options_box(Gtk::ORIENTATION_VERTICAL, 4),
       m_realtime_check("Realtime"),
-      m_sync_check("Use Server Synchronous Mode"),
+      m_shorts_check("Prefer 16-bit Samples (Shorts)"),
       m_button_box(Gtk::ORIENTATION_HORIZONTAL, 10),
       m_close_btn("Close") {
     set_default_size(420, 500);
@@ -66,7 +66,7 @@ void SettingsDialog::build_ui() {
     m_content_box.pack_start(m_midi_frame, false, false, 0);
 
     m_options_box.pack_start(m_realtime_check, false, false, 0);
-    m_options_box.pack_start(m_sync_check, false, false, 0);
+    m_options_box.pack_start(m_shorts_check, false, false, 0);
     m_options_frame.add(m_options_box);
     m_content_box.pack_start(m_options_frame, false, false, 0);
 
@@ -151,7 +151,7 @@ void SettingsDialog::load_current_settings() {
 
     // Checkboxes — correctly loaded from config
     m_realtime_check.set_active(m_config.get_realtime());
-    m_sync_check.set_active(m_config.get_synchronous());
+    m_shorts_check.set_active(m_config.get_synchronous());
 }
 
 void SettingsDialog::on_start() {
@@ -173,7 +173,7 @@ void SettingsDialog::on_start() {
     settings.frames_per_period  = std::stoi(fpp_str);
     settings.periods_per_buffer = std::stoi(ppb_str);
     settings.realtime         = m_realtime_check.get_active();
-    settings.synchronous      = m_sync_check.get_active();
+    settings.synchronous      = m_shorts_check.get_active();
     settings.midi_driver      = m_midi_combo.get_active_id();
 
     m_config.set_interface(settings.interface);
@@ -185,7 +185,14 @@ void SettingsDialog::on_start() {
     m_config.set_synchronous(settings.synchronous);
     m_config.save();
 
-    m_server.start(settings);
+    bool started = m_server.start(settings);
+    if (!started) {
+        std::string msg = "Failed to start jackd.";
+        std::string err = m_server.get_last_error();
+        if (!err.empty()) msg += "\n\njackd output:\n" + err;
+        Gtk::MessageDialog dlg(*this, msg, false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+        dlg.run();
+    }
 
     update_server_status(m_server.is_running());
 }

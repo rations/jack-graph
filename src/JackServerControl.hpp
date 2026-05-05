@@ -25,7 +25,9 @@ public:
     bool stop();
 
     std::string list_audio_devices() const;
+    std::string get_last_error() const;
 
 private:
     pid_t m_child_pid;
+    std::string m_last_error;
 };

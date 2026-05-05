@@ -47,7 +47,7 @@ private:
     Gtk::Frame m_options_frame;
     Gtk::Box m_options_box;
     Gtk::CheckButton m_realtime_check;
-    Gtk::CheckButton m_sync_check;
+    Gtk::CheckButton m_shorts_check;
 
     Gtk::Box m_button_box;
     Gtk::Button m_close_btn;

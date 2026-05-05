@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra $(shell pkg-config --cflags gtkmm-3.0 jack alsa)
+CXXFLAGS = -std=c++17 -Wall -Wextra -MMD -MP $(shell pkg-config --cflags gtkmm-3.0 jack alsa)
 LDFLAGS = $(shell pkg-config --libs gtkmm-3.0 jack alsa)
 
 SOURCES = src/main.cpp src/JackGraph.cpp src/JackClient.cpp \
@@ -7,6 +7,7 @@ SOURCES = src/main.cpp src/JackGraph.cpp src/JackClient.cpp \
           src/Connection.cpp src/Config.cpp src/ClientBox.cpp \
           src/JackServerControl.cpp src/SettingsDialog.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
+DEPS    = $(OBJECTS:.o=.d)
 TARGET = jack-graph
 
 $(TARGET): $(OBJECTS)
@@ -15,8 +16,10 @@ $(TARGET): $(OBJECTS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+-include $(DEPS)
+
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(DEPS) $(TARGET)
 
 install: $(TARGET)
 	install -d $(DESTDIR)/usr/bin
