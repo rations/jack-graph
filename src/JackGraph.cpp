@@ -3,7 +3,7 @@
 
 JackGraph::JackGraph()
     : m_main_box(Gtk::ORIENTATION_VERTICAL),
-      m_jack_connected(false), m_alsa_connected(false) {
+      m_jack_connected(false), m_alsa_connected(false), m_refresh_pending(false) {
     set_title("Jack Graph");
     set_default_size(1200, 800);
 
@@ -17,9 +17,7 @@ JackGraph::JackGraph()
     if (m_jack_connected) {
         std::cerr << "jack-graph: Connected to running JACK server" << std::endl;
         m_jack.set_port_callback([this]() {
-            Glib::signal_idle().connect_once([this]() {
-                refresh_ports();
-            });
+            Glib::signal_idle().connect_once([this]() { schedule_refresh(); });
         });
         m_jack.set_xrun_callback([this]() {
             Glib::signal_idle().connect_once([this]() {
@@ -180,7 +178,7 @@ void JackGraph::refresh_ports() {
         }
     }
 
-    m_canvas.layout(true);
+    m_canvas.layout();
     update_status_bar();
 }
 
@@ -224,6 +222,14 @@ void JackGraph::on_menu_zoom_normal() {
 
 void JackGraph::on_menu_settings() {
     SettingsDialog dialog(*this, m_server, m_config);
+    dialog.set_stop_callback([this]() {
+        if (m_jack_connected) {
+            m_jack.disconnect();
+            m_jack_connected = false;
+            refresh_ports();
+            update_status_bar();
+        }
+    });
     dialog.run();
 
     // Sync JACK connection state with server state after dialog closes
@@ -233,9 +239,7 @@ void JackGraph::on_menu_settings() {
         m_jack_connected = m_jack.connect("jack-graph");
         if (m_jack_connected) {
             m_jack.set_port_callback([this]() {
-                Glib::signal_idle().connect_once([this]() {
-                    refresh_ports();
-                });
+                Glib::signal_idle().connect_once([this]() { schedule_refresh(); });
             });
             m_jack.set_xrun_callback([this]() {
                 Glib::signal_idle().connect_once([this]() {
@@ -250,6 +254,7 @@ void JackGraph::on_menu_settings() {
 
     refresh_ports();
     update_status_bar();
+    Glib::signal_idle().connect_once([this]() { m_canvas.fit_to_window(); });
 }
 
 void JackGraph::on_menu_about() {
@@ -264,6 +269,15 @@ void JackGraph::on_menu_about() {
 
 void JackGraph::on_menu_quit() {
     hide();
+}
+
+void JackGraph::schedule_refresh() {
+    if (m_refresh_pending) return;
+    m_refresh_pending = true;
+    Glib::signal_timeout().connect_once([this]() {
+        m_refresh_pending = false;
+        refresh_ports();
+    }, 150);
 }
 
 void JackGraph::update_status_bar() {

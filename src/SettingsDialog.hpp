@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gtkmm.h>
+#include <functional>
 #include "JackServerControl.hpp"
 #include "Config.hpp"
 
@@ -16,6 +17,12 @@ private:
     void update_server_status(bool running);
     void on_start();
     void on_stop();
+
+public:
+    void set_stop_callback(std::function<void()> cb) { m_stop_cb = std::move(cb); }
+
+private:
+    std::function<void()> m_stop_cb;
 
     JackServerControl& m_server;
     Config& m_config;

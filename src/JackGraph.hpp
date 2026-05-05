@@ -39,6 +39,7 @@ private:
     void on_menu_quit();
 
     void update_status_bar();
+    void schedule_refresh();
 
     Gtk::Box m_main_box;
     Gtk::MenuBar m_menu_bar;
@@ -54,4 +55,5 @@ private:
 
     bool m_jack_connected;
     bool m_alsa_connected;
+    bool m_refresh_pending;
 };

@@ -33,9 +33,6 @@ void GraphCanvas::add_connection(std::shared_ptr<Connection> conn) {
 }
 
 void GraphCanvas::remove_all() {
-    for (const auto& box : m_client_boxes) {
-        m_saved_positions[box.client_name] = {box.x, box.y};
-    }
     m_nodes.clear();
     m_connections.clear();
     m_client_boxes.clear();
@@ -90,19 +87,13 @@ void GraphCanvas::build_client_boxes() {
     }
 }
 
-void GraphCanvas::layout(bool preserve_positions) {
-    if (preserve_positions) {
-        for (const auto& box : m_client_boxes) {
-            m_saved_positions[box.client_name] = {box.x, box.y};
-        }
-    }
-
+void GraphCanvas::layout() {
     build_client_boxes();
 
     /* Split boxes by signal role:
-     *   sources — OUTPUT ports only  → left column  (capture, usb_in, apps)
-     *   sinks   — INPUT ports only   → right column (playback, usb_out, hdmi_out, bt)
-     *   mixed   — both directions    → left column, below sources */
+     *   sources — OUTPUT ports only  → left column
+     *   sinks   — INPUT ports only   → right column
+     *   mixed   — both directions    → centre column */
     std::vector<ClientBox*> sources, sinks, mixed;
     for (auto& box : m_client_boxes) {
         if (!box.outputs.empty() && box.inputs.empty())
@@ -155,33 +146,16 @@ void GraphCanvas::layout(bool preserve_positions) {
     double mid_y   = m_offset_y;
     double right_y = m_offset_y;
 
-    /* Pass 1: restore saved boxes at their saved positions and find the
-     * lowest occupied Y in each column so new boxes never overlap them. */
-    auto place_saved = [&](ClientBox* box, double& col_floor) {
-        auto it = m_saved_positions.find(box->client_name);
-        if (it == m_saved_positions.end()) return;
-        box->x = it->second.x;
-        box->y = it->second.y;
-        position_ports(box);
-        col_floor = std::max(col_floor, box->y + box->height + ROW_GAP);
-    };
-
-    for (auto* box : sources) place_saved(box, left_y);
-    for (auto* box : mixed)   place_saved(box, mid_y);
-    for (auto* box : sinks)   place_saved(box, right_y);
-
-    /* Pass 2: place new (unsaved) boxes below all saved content in their column. */
-    auto place_new = [&](ClientBox* box, double col_x, double& col_y) {
-        if (m_saved_positions.count(box->client_name)) return;
+    auto place = [&](ClientBox* box, double col_x, double& col_y) {
         box->x = col_x;
         box->y = col_y;
         position_ports(box);
         col_y += box->height + ROW_GAP;
     };
 
-    for (auto* box : sources) place_new(box, left_x, left_y);
-    for (auto* box : mixed)   place_new(box, mid_x, mid_y);
-    for (auto* box : sinks)   place_new(box, right_x, right_y);
+    for (auto* box : sources) place(box, left_x, left_y);
+    for (auto* box : mixed)   place(box, mid_x,  mid_y);
+    for (auto* box : sinks)   place(box, right_x, right_y);
 
     /* Compute canvas bounds to fit all boxes including user-dragged ones */
     double max_x = 0, max_y = 0;

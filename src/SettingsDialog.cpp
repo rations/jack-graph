@@ -198,6 +198,7 @@ void SettingsDialog::on_start() {
 }
 
 void SettingsDialog::on_stop() {
+    if (m_stop_cb) m_stop_cb();
     m_server.stop();
 
     usleep(200000);

@@ -22,7 +22,7 @@ public:
     void set_zoom(double zoom);
     double get_zoom() const { return m_zoom; }
 
-    void layout(bool preserve_positions = false);
+    void layout();
     void fit_to_window();
 
     const std::vector<std::shared_ptr<Node>>& get_nodes() const { return m_nodes; }
@@ -55,11 +55,6 @@ private:
     std::vector<std::shared_ptr<Node>> m_nodes;
     std::vector<std::shared_ptr<Connection>> m_connections;
     std::vector<ClientBox> m_client_boxes;
-
-    struct SavedPosition {
-        double x, y;
-    };
-    std::map<std::string, SavedPosition> m_saved_positions;
 
     double m_zoom;
     double m_offset_x;
