@@ -36,6 +36,12 @@ JackGraph::JackGraph()
     update_status_bar();
 
     show_all_children();
+
+    /* Fit all nodes into the visible viewport on first launch.
+     * Deferred via signal_idle so GTK has finished allocating widget sizes. */
+    Glib::signal_idle().connect_once([this]() {
+        m_canvas.fit_to_window();
+    });
 }
 
 JackGraph::~JackGraph() {
@@ -157,7 +163,11 @@ void JackGraph::refresh_ports() {
         }
     }
 
-    if (m_alsa_connected) {
+    /* Only enumerate ALSA MIDI ports when JACK is not connected.
+     * When JACK is running it already bridges all ALSA MIDI devices via
+     * jack_get_ports above; adding them again from ALSA produces phantom
+     * duplicate ports (e.g. Midi-Through shows 3 ports instead of 2). */
+    if (m_alsa_connected && !m_jack_connected) {
         auto ports = m_alsa.get_ports();
         for (const auto& p : ports) {
             std::string full_name = p.client + ":" + p.name;
@@ -214,43 +224,32 @@ void JackGraph::on_menu_zoom_normal() {
 
 void JackGraph::on_menu_settings() {
     SettingsDialog dialog(*this, m_server, m_config);
-    
-    // Callback for Start (reconnect after server starts)
-    dialog.set_apply_callback([this]() {
-        if (m_jack.is_connected()) {
-            m_jack.disconnect();
-            m_jack_connected = false;
-        }
-        if (m_server.is_running()) {
-            m_jack_connected = m_jack.connect("jack-graph");
-            if (m_jack_connected) {
-                m_jack.set_port_callback([this]() {
-                    Glib::signal_idle().connect_once([this]() {
-                        refresh_ports();
-                    });
-                });
-                m_jack.set_xrun_callback([this]() {
-                    Glib::signal_idle().connect_once([this]() {
-                        update_status_bar();
-                    });
-                });
-                refresh_ports();
-            }
-        }
-        update_status_bar();
-    });
-    
-    // Callback for Stop (just disconnect, don't reconnect)
-    dialog.set_disconnect_callback([this]() {
-        if (m_jack.is_connected()) {
-            m_jack.disconnect();
-            m_jack_connected = false;
-        }
-        refresh_ports();
-        update_status_bar();
-    });
-    
     dialog.run();
+
+    // Sync JACK connection state with server state after dialog closes
+    bool server_running = m_server.is_running();
+
+    if (server_running && !m_jack_connected) {
+        m_jack_connected = m_jack.connect("jack-graph");
+        if (m_jack_connected) {
+            m_jack.set_port_callback([this]() {
+                Glib::signal_idle().connect_once([this]() {
+                    refresh_ports();
+                });
+            });
+            m_jack.set_xrun_callback([this]() {
+                Glib::signal_idle().connect_once([this]() {
+                    update_status_bar();
+                });
+            });
+        }
+    } else if (!server_running && m_jack_connected) {
+        m_jack.disconnect();
+        m_jack_connected = false;
+    }
+
+    refresh_ports();
+    update_status_bar();
 }
 
 void JackGraph::on_menu_about() {

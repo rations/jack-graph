@@ -17,6 +17,7 @@ tar -czf "${TARBALL_NAME}" \
     --exclude="${TARBALL_NAME}" \
     README.md \
     install.sh \
+    uninstall.sh \
     jack-graph \
     resources/jack-graph.desktop \
     LICENSE

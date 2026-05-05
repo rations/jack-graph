@@ -1,8 +1,5 @@
 #include "SettingsDialog.hpp"
-#include <iostream>
 #include <sstream>
-#include <fstream>
-#include <unistd.h>
 
 SettingsDialog::SettingsDialog(Gtk::Window& parent, JackServerControl& server, Config& config)
     : Gtk::Dialog("JACK Settings", parent, true),
@@ -30,8 +27,8 @@ SettingsDialog::SettingsDialog(Gtk::Window& parent, JackServerControl& server, C
     add_action_widget(m_close_btn, Gtk::RESPONSE_CLOSE);
 
     build_ui();
+    populate_devices();       // items must exist before load_current_settings sets active IDs
     load_current_settings();
-    populate_devices();
 
     show_all_children();
 }
@@ -113,7 +110,12 @@ void SettingsDialog::populate_devices() {
     std::string line;
     while (std::getline(stream, line)) {
         if (line.empty()) continue;
-        m_interface_combo.append(line, line);
+        auto pipe = line.find('|');
+        if (pipe == std::string::npos) {
+            m_interface_combo.append(line, line);
+        } else {
+            m_interface_combo.append(line.substr(0, pipe), line.substr(pipe + 1));
+        }
     }
 }
 
@@ -126,108 +128,71 @@ void SettingsDialog::update_server_status(bool running) {
 void SettingsDialog::load_current_settings() {
     update_server_status(m_server.is_running());
 
-    // Read settings from /etc/default/jackd-rt (the actual service config)
-    std::ifstream ifs("/etc/default/jackd-rt");
-    if (ifs.is_open()) {
-        std::string line;
-        while (std::getline(ifs, line)) {
-            if (line.empty() || line[0] == '#') continue;
-            
-            size_t eq = line.find('=');
-            if (eq == std::string::npos) continue;
-            
-            std::string key = line.substr(0, eq);
-            std::string val = line.substr(eq + 1);
-            
-            // Remove quotes
-            if (val.size() >= 2 && val.front() == '"' && val.back() == '"') {
-                val = val.substr(1, val.size() - 2);
-            }
-            
-            if (key == "JACKD_DEVICE") {
-                m_interface_combo.set_active_id(val);
-            } else if (key == "JACKD_SR") {
-                m_sample_rate_combo.set_active_id(val);
-            } else if (key == "JACKD_PERIOD") {
-                m_frames_combo.set_active_id(val);
-            } else if (key == "JACKD_NPERIODS") {
-                m_periods_combo.set_active_id(val);
-            } else if (key == "JACKD_MIDI") {
-                m_midi_combo.set_active_id(val);
-            }
-        }
-        ifs.close();
-    }
+    // Interface
+    std::string iface = m_config.get_interface();
+    if (!iface.empty())
+        m_interface_combo.set_active_id(iface);
 
-    // Fallback to internal config if /etc/default/jackd-rt doesn't exist
-    if (m_interface_combo.get_active_id().empty()) {
-        std::string iface = m_config.get_interface();
-        if (!iface.empty()) m_interface_combo.set_active_id(iface);
-    }
-    if (m_sample_rate_combo.get_active_id().empty()) {
-        int sr = m_config.get_sample_rate();
-        if (sr > 0) m_sample_rate_combo.set_active_id(std::to_string(sr));
-    }
-    if (m_frames_combo.get_active_id().empty()) {
-        int fpp = m_config.get_frames_per_period();
-        if (fpp > 0) m_frames_combo.set_active_id(std::to_string(fpp));
-    }
-    if (m_periods_combo.get_active_id().empty()) {
-        int ppb = m_config.get_periods_per_buffer();
-        if (ppb > 0) m_periods_combo.set_active_id(std::to_string(ppb));
-    }
-    if (m_midi_combo.get_active_id().empty()) {
-        std::string midi = m_config.get_midi_driver();
-        if (!midi.empty()) m_midi_combo.set_active_id(midi);
-    }
+    // Sample rate — default 48000 on first run
+    int sr = m_config.get_sample_rate();
+    m_sample_rate_combo.set_active_id(sr > 0 ? std::to_string(sr) : "48000");
+
+    // Frames/period — default 1024 on first run
+    int fpp = m_config.get_frames_per_period();
+    m_frames_combo.set_active_id(fpp > 0 ? std::to_string(fpp) : "1024");
+
+    // Periods/buffer — default 2 on first run
+    int ppb = m_config.get_periods_per_buffer();
+    m_periods_combo.set_active_id(ppb > 0 ? std::to_string(ppb) : "2");
+
+    // MIDI driver — default none on first run
+    std::string midi = m_config.get_midi_driver();
+    m_midi_combo.set_active_id(!midi.empty() ? midi : "none");
+
+    // Checkboxes — correctly loaded from config
+    m_realtime_check.set_active(m_config.get_realtime());
+    m_sync_check.set_active(m_config.get_synchronous());
 }
 
 void SettingsDialog::on_start() {
-    std::string iface = m_interface_combo.get_active_id();
-    std::string sr_str = m_sample_rate_combo.get_active_id();
+    std::string iface   = m_interface_combo.get_active_id();
+    std::string sr_str  = m_sample_rate_combo.get_active_id();
     std::string fpp_str = m_frames_combo.get_active_id();
     std::string ppb_str = m_periods_combo.get_active_id();
-    
-    JackSettings settings;
-    settings.interface = iface;
-    settings.sample_rate = std::stoi(sr_str);
-    settings.frames_per_period = std::stoi(fpp_str);
-    settings.periods_per_buffer = std::stoi(ppb_str);
-    settings.realtime = m_realtime_check.get_active();
-    settings.synchronous = m_sync_check.get_active();
-    settings.midi_driver = m_midi_combo.get_active_id();
 
-    // Update internal config too
+    if (sr_str.empty() || fpp_str.empty() || ppb_str.empty()) {
+        Gtk::MessageDialog err(*this, "Please select Sample Rate, Frames/Period, and Periods/Buffer.",
+                               false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+        err.run();
+        return;
+    }
+
+    JackSettings settings;
+    settings.interface        = iface;
+    settings.sample_rate      = std::stoi(sr_str);
+    settings.frames_per_period  = std::stoi(fpp_str);
+    settings.periods_per_buffer = std::stoi(ppb_str);
+    settings.realtime         = m_realtime_check.get_active();
+    settings.synchronous      = m_sync_check.get_active();
+    settings.midi_driver      = m_midi_combo.get_active_id();
+
     m_config.set_interface(settings.interface);
     m_config.set_sample_rate(settings.sample_rate);
     m_config.set_frames_per_period(settings.frames_per_period);
     m_config.set_periods_per_buffer(settings.periods_per_buffer);
     m_config.set_midi_driver(settings.midi_driver);
+    m_config.set_realtime(settings.realtime);
+    m_config.set_synchronous(settings.synchronous);
     m_config.save();
 
-    // Start button handles everything: update /etc/default/jackd-rt and start service
     m_server.start(settings);
 
-    // Notify main window to reconnect and refresh
-    if (m_apply_cb) {
-        m_apply_cb();
-    }
-
-    // Update button states
-    usleep(200000);
     update_server_status(m_server.is_running());
 }
 
 void SettingsDialog::on_stop() {
-    // Disconnect JACK client FIRST (without reconnecting) to prevent callbacks during server shutdown
-    if (m_disconnect_cb) {
-        m_disconnect_cb();
-    }
-
-    // Now stop the server
     m_server.stop();
 
-    // Update button states
     usleep(200000);
     update_server_status(m_server.is_running());
 }

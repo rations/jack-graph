@@ -20,9 +20,14 @@ bool AlsaClient::connect(const std::string& client_name) {
         return false;
     }
 
+    /* SND_SEQ_PORT_CAP_NO_EXPORT marks this port as internal-use only.
+     * Without it JACK's ALSA MIDI bridge picks it up and creates extra
+     * system:midi_capture_N / system:midi_playback_N ports that appear
+     * as phantom entries in the graph. */
     m_client_id = snd_seq_create_simple_port(m_seq, client_name.c_str(),
         SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ |
-        SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+        SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE |
+        SND_SEQ_PORT_CAP_NO_EXPORT,
         SND_SEQ_PORT_TYPE_MIDI_GENERIC | SND_SEQ_PORT_TYPE_APPLICATION);
     if (m_client_id < 0) {
         snd_seq_close(m_seq);

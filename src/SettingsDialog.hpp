@@ -1,7 +1,6 @@
 #pragma once
 
 #include <gtkmm.h>
-#include <functional>
 #include "JackServerControl.hpp"
 #include "Config.hpp"
 
@@ -10,16 +9,11 @@ public:
     SettingsDialog(Gtk::Window& parent, JackServerControl& server, Config& config);
     ~SettingsDialog() override;
 
-    using ApplyCallback = std::function<void()>;
-    void set_apply_callback(ApplyCallback cb) { m_apply_cb = std::move(cb); }
-    void set_disconnect_callback(ApplyCallback cb) { m_disconnect_cb = std::move(cb); }
-
 private:
     void build_ui();
     void populate_devices();
     void load_current_settings();
     void update_server_status(bool running);
-    void on_apply();
     void on_start();
     void on_stop();
 
@@ -57,7 +51,4 @@ private:
 
     Gtk::Box m_button_box;
     Gtk::Button m_close_btn;
-
-    ApplyCallback m_apply_cb;
-    ApplyCallback m_disconnect_cb;
 };

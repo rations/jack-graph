@@ -1,8 +1,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include "Config.hpp"
+#include <sys/types.h>
 
 struct JackSettings {
     std::string interface;
@@ -28,5 +27,5 @@ public:
     std::string list_audio_devices() const;
 
 private:
-    Config m_config;
+    pid_t m_child_pid;
 };

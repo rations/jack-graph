@@ -23,6 +23,7 @@ public:
     double get_zoom() const { return m_zoom; }
 
     void layout(bool preserve_positions = false);
+    void fit_to_window();
 
     const std::vector<std::shared_ptr<Node>>& get_nodes() const { return m_nodes; }
     const std::vector<std::shared_ptr<Connection>>& get_connections() const { return m_connections; }
@@ -84,4 +85,5 @@ private:
     static constexpr double PORT_RADIUS = 6;
     static constexpr double BOX_GAP = 80;
     static constexpr double ROW_GAP = 10;
+    static constexpr double COL_GAP = 250;
 };
