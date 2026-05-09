@@ -1,5 +1,8 @@
 #include "SettingsDialog.hpp"
+#include <iostream>
 #include <sstream>
+#include <fstream>
+#include <unistd.h>
 
 SettingsDialog::SettingsDialog(Gtk::Window& parent, JackServerControl& server, Config& config)
     : Gtk::Dialog("JACK Settings", parent, true),

@@ -6,7 +6,6 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/lib/x86_64-linux-gnu/glib-2.0/include/glibconfig.h \
  /usr/include/glib-2.0/glib/gmacros.h \
  /usr/include/glib-2.0/glib/gversionmacros.h \
- /usr/include/glib-2.0/glib/glib-visibility.h \
  /usr/include/glib-2.0/glib/garray.h \
  /usr/include/glib-2.0/glib/gasyncqueue.h \
  /usr/include/glib-2.0/glib/gthread.h \
@@ -37,7 +36,6 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/glib-2.0/glib/gmain.h /usr/include/glib-2.0/glib/gpoll.h \
  /usr/include/glib-2.0/glib/gslist.h /usr/include/glib-2.0/glib/gstring.h \
  /usr/include/glib-2.0/glib/gunicode.h \
- /usr/include/glib-2.0/glib/gstrfuncs.h \
  /usr/include/glib-2.0/glib/gkeyfile.h \
  /usr/include/glib-2.0/glib/gmappedfile.h \
  /usr/include/glib-2.0/glib/gmarkup.h \
@@ -45,7 +43,6 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/glib-2.0/glib/gvariant.h \
  /usr/include/glib-2.0/glib/gvarianttype.h \
  /usr/include/glib-2.0/glib/goption.h \
- /usr/include/glib-2.0/glib/gpathbuf.h \
  /usr/include/glib-2.0/glib/gpattern.h \
  /usr/include/glib-2.0/glib/gprimes.h /usr/include/glib-2.0/glib/gqsort.h \
  /usr/include/glib-2.0/glib/gqueue.h /usr/include/glib-2.0/glib/grand.h \
@@ -58,6 +55,7 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/glib-2.0/glib/gsequence.h \
  /usr/include/glib-2.0/glib/gshell.h /usr/include/glib-2.0/glib/gslice.h \
  /usr/include/glib-2.0/glib/gspawn.h \
+ /usr/include/glib-2.0/glib/gstrfuncs.h \
  /usr/include/glib-2.0/glib/gstringchunk.h \
  /usr/include/glib-2.0/glib/gstrvbuilder.h \
  /usr/include/glib-2.0/glib/gtestutils.h \
@@ -84,7 +82,6 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/glib-2.0/gobject/gbinding.h \
  /usr/include/glib-2.0/gobject/gobject.h \
  /usr/include/glib-2.0/gobject/gtype.h \
- /usr/include/glib-2.0/gobject/gobject-visibility.h \
  /usr/include/glib-2.0/gobject/gvalue.h \
  /usr/include/glib-2.0/gobject/gparam.h \
  /usr/include/glib-2.0/gobject/gclosure.h \
@@ -203,9 +200,7 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/giomm-2.4/giomm/action.h \
  /usr/lib/x86_64-linux-gnu/giomm-2.4/include/giommconfig.h \
  /usr/include/glib-2.0/gio/gio.h /usr/include/glib-2.0/gio/giotypes.h \
- /usr/include/glib-2.0/gio/gioenums.h \
- /usr/include/glib-2.0/gio/gio-visibility.h \
- /usr/include/glib-2.0/gio/gaction.h \
+ /usr/include/glib-2.0/gio/gioenums.h /usr/include/glib-2.0/gio/gaction.h \
  /usr/include/glib-2.0/gio/gactiongroup.h \
  /usr/include/glib-2.0/gio/gactiongroupexporter.h \
  /usr/include/glib-2.0/gio/gactionmap.h \
@@ -281,7 +276,6 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/glib-2.0/gio/gsocketaddress.h \
  /usr/include/glib-2.0/gio/gioenumtypes.h \
  /usr/include/glib-2.0/gio/giomodule.h /usr/include/glib-2.0/gmodule.h \
- /usr/include/glib-2.0/gmodule/gmodule-visibility.h \
  /usr/include/glib-2.0/gio/gioscheduler.h \
  /usr/include/glib-2.0/gio/glistmodel.h \
  /usr/include/glib-2.0/gio/gliststore.h \
@@ -513,11 +507,11 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/harfbuzz/hb-blob.h /usr/include/harfbuzz/hb-common.h \
  /usr/include/harfbuzz/hb-buffer.h /usr/include/harfbuzz/hb-unicode.h \
  /usr/include/harfbuzz/hb-font.h /usr/include/harfbuzz/hb-face.h \
- /usr/include/harfbuzz/hb-map.h /usr/include/harfbuzz/hb-set.h \
- /usr/include/harfbuzz/hb-draw.h /usr/include/harfbuzz/hb.h \
- /usr/include/harfbuzz/hb-paint.h /usr/include/harfbuzz/hb-deprecated.h \
- /usr/include/harfbuzz/hb-shape.h /usr/include/harfbuzz/hb-shape-plan.h \
- /usr/include/harfbuzz/hb-style.h /usr/include/harfbuzz/hb-version.h \
+ /usr/include/harfbuzz/hb-set.h /usr/include/harfbuzz/hb-draw.h \
+ /usr/include/harfbuzz/hb.h /usr/include/harfbuzz/hb-deprecated.h \
+ /usr/include/harfbuzz/hb-map.h /usr/include/harfbuzz/hb-shape.h \
+ /usr/include/harfbuzz/hb-shape-plan.h /usr/include/harfbuzz/hb-style.h \
+ /usr/include/harfbuzz/hb-version.h \
  /usr/include/pango-1.0/pango/pango-types.h \
  /usr/include/pango-1.0/pango/pango-gravity.h \
  /usr/include/pango-1.0/pango/pango-matrix.h \
@@ -684,22 +678,22 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/gtk-3.0/gtk/gtkaccelgroup.h \
  /usr/include/gtk-3.0/gtk/gtkenums.h /usr/include/gtk-3.0/gtk/gtkborder.h \
  /usr/include/gtk-3.0/gtk/gtktypes.h /usr/include/atk-1.0/atk/atk.h \
- /usr/include/atk-1.0/atk/atk-enum-types.h \
- /usr/include/atk-1.0/atk/atkversion.h \
- /usr/include/atk-1.0/atk/atkaction.h \
  /usr/include/atk-1.0/atk/atkobject.h \
- /usr/include/atk-1.0/atk/atkrelationtype.h \
+ /usr/include/atk-1.0/atk/atkversion.h \
  /usr/include/atk-1.0/atk/atkstate.h \
+ /usr/include/atk-1.0/atk/atkrelationtype.h \
+ /usr/include/atk-1.0/atk/atkaction.h \
  /usr/include/atk-1.0/atk/atkcomponent.h \
  /usr/include/atk-1.0/atk/atkutil.h \
  /usr/include/atk-1.0/atk/atkdocument.h \
  /usr/include/atk-1.0/atk/atkeditabletext.h \
  /usr/include/atk-1.0/atk/atktext.h \
+ /usr/include/atk-1.0/atk/atk-enum-types.h \
  /usr/include/atk-1.0/atk/atkgobjectaccessible.h \
  /usr/include/atk-1.0/atk/atkhyperlink.h \
  /usr/include/atk-1.0/atk/atkhyperlinkimpl.h \
  /usr/include/atk-1.0/atk/atkhypertext.h \
- /usr/include/atk-1.0/atk/atkimage.h /usr/include/atk-1.0/atk/atkmisc.h \
+ /usr/include/atk-1.0/atk/atkimage.h \
  /usr/include/atk-1.0/atk/atknoopobject.h \
  /usr/include/atk-1.0/atk/atknoopobjectfactory.h \
  /usr/include/atk-1.0/atk/atkobjectfactory.h \
@@ -714,7 +708,8 @@ src/SettingsDialog.o: src/SettingsDialog.cpp src/SettingsDialog.hpp \
  /usr/include/atk-1.0/atk/atkstreamablecontent.h \
  /usr/include/atk-1.0/atk/atktable.h \
  /usr/include/atk-1.0/atk/atktablecell.h \
- /usr/include/atk-1.0/atk/atkvalue.h /usr/include/atk-1.0/atk/atkwindow.h \
+ /usr/include/atk-1.0/atk/atkmisc.h /usr/include/atk-1.0/atk/atkvalue.h \
+ /usr/include/atk-1.0/atk/atkwindow.h \
  /usr/include/atk-1.0/atk/atk-autocleanups.h \
  /usr/include/gtk-3.0/gtk/gtkbin.h \
  /usr/include/gtk-3.0/gtk/gtkcontainer.h \
@@ -1212,7 +1207,6 @@ src/SettingsDialog.hpp:
 /usr/lib/x86_64-linux-gnu/glib-2.0/include/glibconfig.h:
 /usr/include/glib-2.0/glib/gmacros.h:
 /usr/include/glib-2.0/glib/gversionmacros.h:
-/usr/include/glib-2.0/glib/glib-visibility.h:
 /usr/include/glib-2.0/glib/garray.h:
 /usr/include/glib-2.0/glib/gasyncqueue.h:
 /usr/include/glib-2.0/glib/gthread.h:
@@ -1251,7 +1245,6 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/glib/gslist.h:
 /usr/include/glib-2.0/glib/gstring.h:
 /usr/include/glib-2.0/glib/gunicode.h:
-/usr/include/glib-2.0/glib/gstrfuncs.h:
 /usr/include/glib-2.0/glib/gkeyfile.h:
 /usr/include/glib-2.0/glib/gmappedfile.h:
 /usr/include/glib-2.0/glib/gmarkup.h:
@@ -1259,7 +1252,6 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/glib/gvariant.h:
 /usr/include/glib-2.0/glib/gvarianttype.h:
 /usr/include/glib-2.0/glib/goption.h:
-/usr/include/glib-2.0/glib/gpathbuf.h:
 /usr/include/glib-2.0/glib/gpattern.h:
 /usr/include/glib-2.0/glib/gprimes.h:
 /usr/include/glib-2.0/glib/gqsort.h:
@@ -1276,6 +1268,7 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/glib/gshell.h:
 /usr/include/glib-2.0/glib/gslice.h:
 /usr/include/glib-2.0/glib/gspawn.h:
+/usr/include/glib-2.0/glib/gstrfuncs.h:
 /usr/include/glib-2.0/glib/gstringchunk.h:
 /usr/include/glib-2.0/glib/gstrvbuilder.h:
 /usr/include/glib-2.0/glib/gtestutils.h:
@@ -1304,7 +1297,6 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/gobject/gbinding.h:
 /usr/include/glib-2.0/gobject/gobject.h:
 /usr/include/glib-2.0/gobject/gtype.h:
-/usr/include/glib-2.0/gobject/gobject-visibility.h:
 /usr/include/glib-2.0/gobject/gvalue.h:
 /usr/include/glib-2.0/gobject/gparam.h:
 /usr/include/glib-2.0/gobject/gclosure.h:
@@ -1426,7 +1418,6 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/gio/gio.h:
 /usr/include/glib-2.0/gio/giotypes.h:
 /usr/include/glib-2.0/gio/gioenums.h:
-/usr/include/glib-2.0/gio/gio-visibility.h:
 /usr/include/glib-2.0/gio/gaction.h:
 /usr/include/glib-2.0/gio/gactiongroup.h:
 /usr/include/glib-2.0/gio/gactiongroupexporter.h:
@@ -1505,7 +1496,6 @@ src/SettingsDialog.hpp:
 /usr/include/glib-2.0/gio/gioenumtypes.h:
 /usr/include/glib-2.0/gio/giomodule.h:
 /usr/include/glib-2.0/gmodule.h:
-/usr/include/glib-2.0/gmodule/gmodule-visibility.h:
 /usr/include/glib-2.0/gio/gioscheduler.h:
 /usr/include/glib-2.0/gio/glistmodel.h:
 /usr/include/glib-2.0/gio/gliststore.h:
@@ -1745,12 +1735,11 @@ src/SettingsDialog.hpp:
 /usr/include/harfbuzz/hb-unicode.h:
 /usr/include/harfbuzz/hb-font.h:
 /usr/include/harfbuzz/hb-face.h:
-/usr/include/harfbuzz/hb-map.h:
 /usr/include/harfbuzz/hb-set.h:
 /usr/include/harfbuzz/hb-draw.h:
 /usr/include/harfbuzz/hb.h:
-/usr/include/harfbuzz/hb-paint.h:
 /usr/include/harfbuzz/hb-deprecated.h:
+/usr/include/harfbuzz/hb-map.h:
 /usr/include/harfbuzz/hb-shape.h:
 /usr/include/harfbuzz/hb-shape-plan.h:
 /usr/include/harfbuzz/hb-style.h:
@@ -1936,23 +1925,22 @@ src/SettingsDialog.hpp:
 /usr/include/gtk-3.0/gtk/gtkborder.h:
 /usr/include/gtk-3.0/gtk/gtktypes.h:
 /usr/include/atk-1.0/atk/atk.h:
-/usr/include/atk-1.0/atk/atk-enum-types.h:
-/usr/include/atk-1.0/atk/atkversion.h:
-/usr/include/atk-1.0/atk/atkaction.h:
 /usr/include/atk-1.0/atk/atkobject.h:
-/usr/include/atk-1.0/atk/atkrelationtype.h:
+/usr/include/atk-1.0/atk/atkversion.h:
 /usr/include/atk-1.0/atk/atkstate.h:
+/usr/include/atk-1.0/atk/atkrelationtype.h:
+/usr/include/atk-1.0/atk/atkaction.h:
 /usr/include/atk-1.0/atk/atkcomponent.h:
 /usr/include/atk-1.0/atk/atkutil.h:
 /usr/include/atk-1.0/atk/atkdocument.h:
 /usr/include/atk-1.0/atk/atkeditabletext.h:
 /usr/include/atk-1.0/atk/atktext.h:
+/usr/include/atk-1.0/atk/atk-enum-types.h:
 /usr/include/atk-1.0/atk/atkgobjectaccessible.h:
 /usr/include/atk-1.0/atk/atkhyperlink.h:
 /usr/include/atk-1.0/atk/atkhyperlinkimpl.h:
 /usr/include/atk-1.0/atk/atkhypertext.h:
 /usr/include/atk-1.0/atk/atkimage.h:
-/usr/include/atk-1.0/atk/atkmisc.h:
 /usr/include/atk-1.0/atk/atknoopobject.h:
 /usr/include/atk-1.0/atk/atknoopobjectfactory.h:
 /usr/include/atk-1.0/atk/atkobjectfactory.h:
@@ -1968,6 +1956,7 @@ src/SettingsDialog.hpp:
 /usr/include/atk-1.0/atk/atkstreamablecontent.h:
 /usr/include/atk-1.0/atk/atktable.h:
 /usr/include/atk-1.0/atk/atktablecell.h:
+/usr/include/atk-1.0/atk/atkmisc.h:
 /usr/include/atk-1.0/atk/atkvalue.h:
 /usr/include/atk-1.0/atk/atkwindow.h:
 /usr/include/atk-1.0/atk/atk-autocleanups.h:
