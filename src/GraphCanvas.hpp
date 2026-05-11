@@ -62,8 +62,8 @@ private:
     std::map<std::string, SavedPosition> m_saved_positions;
 
     double m_zoom;
-    double m_offset_x;
-    double m_offset_y;
+    double m_pan_x;
+    double m_pan_y;
     bool m_is_dragging;
     bool m_is_panning;
     bool m_is_moving_box;
@@ -81,6 +81,7 @@ private:
     ConnectCallback m_connect_cb;
     DisconnectCallback m_disconnect_cb;
 
+    static constexpr double LAYOUT_MARGIN = 20.0;
     static constexpr double BOX_PAD = 8;
     static constexpr double PORT_RADIUS = 6;
     static constexpr double BOX_GAP = 80;

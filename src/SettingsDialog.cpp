@@ -198,10 +198,11 @@ void SettingsDialog::on_start() {
     }
 
     update_server_status(m_server.is_running());
+    if (m_apply_cb && m_server.is_running()) m_apply_cb();
 }
 
 void SettingsDialog::on_stop() {
-    if (m_stop_cb) m_stop_cb();
+    if (m_disconnect_cb) m_disconnect_cb();
     m_server.stop();
 
     usleep(200000);

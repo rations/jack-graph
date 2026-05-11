@@ -48,8 +48,10 @@ public:
     void set_port_callback(PortCallback cb) { m_port_callback = std::move(cb); }
     void set_xrun_callback(XRunCallback cb) { m_xrun_callback = std::move(cb); }
 
-private:
     void scan_ports();
+
+private:
+    static void client_registration_callback(const char* name, int reg, void* arg);
     static void port_registration_callback(jack_port_id_t port_id, int reg, void* arg);
     static void port_connect_callback(jack_port_id_t a, jack_port_id_t b, int connect, void* arg);
     static int sample_rate_callback(jack_nframes_t nframes, void* arg);

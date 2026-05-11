@@ -19,10 +19,12 @@ private:
     void on_stop();
 
 public:
-    void set_stop_callback(std::function<void()> cb) { m_stop_cb = std::move(cb); }
+    void set_apply_callback(std::function<void()> cb) { m_apply_cb = std::move(cb); }
+    void set_disconnect_callback(std::function<void()> cb) { m_disconnect_cb = std::move(cb); }
 
 private:
-    std::function<void()> m_stop_cb;
+    std::function<void()> m_apply_cb;
+    std::function<void()> m_disconnect_cb;
 
     JackServerControl& m_server;
     Config& m_config;

@@ -20,6 +20,7 @@ bool JackClient::connect(const std::string& client_name) {
         return false;
     }
 
+    jack_set_client_registration_callback(m_client, client_registration_callback, this);
     jack_set_port_registration_callback(m_client, port_registration_callback, this);
     jack_set_port_connect_callback(m_client, port_connect_callback, this);
     jack_set_sample_rate_callback(m_client, sample_rate_callback, this);
@@ -64,8 +65,10 @@ std::vector<JackClient::ConnectionInfo> JackClient::get_connections() const {
     for (const auto& port : m_ports) {
         if (!port.is_output) continue;
 
-        const char** connections = jack_port_get_all_connections(m_client,
-            jack_port_by_name(m_client, port.name.c_str()));
+        jack_port_t* jp = jack_port_by_name(m_client, port.name.c_str());
+        if (!jp) continue;
+
+        const char** connections = jack_port_get_all_connections(m_client, jp);
         if (connections) {
             for (int i = 0; connections[i]; ++i) {
                 ConnectionInfo conn;
@@ -147,15 +150,29 @@ void JackClient::scan_ports() {
     jack_free(ports);
 }
 
+void JackClient::client_registration_callback(const char* name, int reg, void* arg) {
+    (void)name;
+    /* Only act on disconnection (reg=0).  On connection (reg=1) the client's
+     * ports are not yet registered, so a refresh here would see an incomplete
+     * port list and save the wrong column position.  Port registration
+     * callbacks handle the connect case once all ports exist. */
+    if (reg != 0) return;
+    auto* self = static_cast<JackClient*>(arg);
+    if (self && self->m_port_callback) {
+        self->m_port_callback();
+    }
+}
+
 void JackClient::port_registration_callback(jack_port_id_t port_id, int reg, void* arg) {
     (void)port_id;
     (void)reg;
     auto* self = static_cast<JackClient*>(arg);
-    if (self && self->m_client) {
-        self->scan_ports();
-        if (self->m_port_callback) {
-            self->m_port_callback();
-        }
+    /* Do NOT call scan_ports() here — JACK fires this callback before its own
+     * registry is fully updated, so jack_get_ports() may still return the dying
+     * port.  The GTK thread calls scan_ports() in refresh_ports() instead,
+     * by which time JACK state has settled. */
+    if (self && self->m_port_callback) {
+        self->m_port_callback();
     }
 }
 

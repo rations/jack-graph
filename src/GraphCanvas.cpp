@@ -4,7 +4,7 @@
 #include <vector>
 
 GraphCanvas::GraphCanvas()
-    : m_zoom(1.0), m_offset_x(20), m_offset_y(20),
+    : m_zoom(1.0), m_pan_x(0.0), m_pan_y(0.0),
       m_is_dragging(false), m_is_panning(false), m_is_moving_box(false),
       m_drag_source(nullptr), m_moving_box(nullptr),
       m_drag_start_x(0), m_drag_start_y(0),
@@ -50,13 +50,21 @@ void GraphCanvas::set_zoom(double zoom) {
 void GraphCanvas::fit_to_window() {
     if (m_client_boxes.empty()) return;
 
-    double content_w = 0, content_h = 0;
+    double min_x = m_client_boxes[0].x;
+    double min_y = m_client_boxes[0].y;
+    double max_x = m_client_boxes[0].x + m_client_boxes[0].width;
+    double max_y = m_client_boxes[0].y + m_client_boxes[0].height;
+
     for (const auto& box : m_client_boxes) {
-        content_w = std::max(content_w, box.x + box.width);
-        content_h = std::max(content_h, box.y + box.height);
+        min_x = std::min(min_x, box.x);
+        min_y = std::min(min_y, box.y);
+        max_x = std::max(max_x, box.x + box.width);
+        max_y = std::max(max_y, box.y + box.height);
     }
-    content_w += m_offset_x;
-    content_h += m_offset_y;
+
+    double content_w = max_x - min_x;
+    double content_h = max_y - min_y;
+    if (content_w <= 0.0 || content_h <= 0.0) return;
 
     auto* parent = get_parent();
     if (!parent) return;
@@ -65,9 +73,17 @@ void GraphCanvas::fit_to_window() {
     int view_h = parent->get_allocation().get_height();
     if (view_w <= 1 || view_h <= 1) return;
 
-    /* Scale to fit with a small margin; never zoom in beyond 100% */
-    double zoom = std::min(view_w / content_w, view_h / content_h) * 0.92;
-    set_zoom(std::max(0.25, std::min(zoom, 1.0)));
+    constexpr double MARGIN = 40.0;
+    double new_zoom = std::min(
+        (view_w - MARGIN * 2) / content_w,
+        (view_h - MARGIN * 2) / content_h);
+    m_zoom = std::max(0.25, std::min(new_zoom, 1.0));
+
+    /* screen = canvas * zoom + pan  =>  pan = screen_center - canvas_center * zoom */
+    m_pan_x = view_w / 2.0 - ((min_x + max_x) / 2.0) * m_zoom;
+    m_pan_y = view_h / 2.0 - ((min_y + max_y) / 2.0) * m_zoom;
+
+    queue_draw();
 }
 
 void GraphCanvas::build_client_boxes() {
@@ -130,9 +146,9 @@ void GraphCanvas::layout(bool preserve_positions) {
     for (const auto& box : m_client_boxes)
         max_box_width = std::max(max_box_width, box.width);
 
-    double left_x  = m_offset_x;
-    double mid_x   = m_offset_x + max_box_width + COL_GAP;
-    double right_x = m_offset_x + max_box_width * 2 + COL_GAP * 2;
+    double left_x  = LAYOUT_MARGIN;
+    double mid_x   = LAYOUT_MARGIN + max_box_width + COL_GAP;
+    double right_x = LAYOUT_MARGIN + max_box_width * 2 + COL_GAP * 2;
 
     auto position_ports = [&](ClientBox* box) {
         for (size_t i = 0; i < box->inputs.size(); ++i) {
@@ -151,9 +167,9 @@ void GraphCanvas::layout(bool preserve_positions) {
         }
     };
 
-    double left_y  = m_offset_y;
-    double mid_y   = m_offset_y;
-    double right_y = m_offset_y;
+    double left_y  = LAYOUT_MARGIN;
+    double mid_y   = LAYOUT_MARGIN;
+    double right_y = LAYOUT_MARGIN;
 
     /* Pass 1: restore saved boxes at their saved positions and find the
      * lowest occupied Y in each column so new boxes never overlap them. */
@@ -193,8 +209,8 @@ void GraphCanvas::layout(bool preserve_positions) {
     auto parent = get_parent();
     if (parent) {
         parent->set_size_request(
-            static_cast<int>(max_x + m_offset_x * 2),
-            static_cast<int>(max_y + m_offset_y * 2));
+            static_cast<int>(max_x + LAYOUT_MARGIN * 2),
+            static_cast<int>(max_y + LAYOUT_MARGIN * 2));
     }
 
     queue_draw();
@@ -205,6 +221,7 @@ bool GraphCanvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
     cr->paint();
 
     cr->save();
+    cr->translate(m_pan_x, m_pan_y);
     cr->scale(m_zoom, m_zoom);
 
     for (auto& conn : m_connections) {
@@ -431,8 +448,8 @@ ClientBox* GraphCanvas::find_box_at(double x, double y) {
 
 bool GraphCanvas::on_button_press_event(GdkEventButton* event) {
     if (event->button == 1) {
-        double x = event->x / m_zoom;
-        double y = event->y / m_zoom;
+        double x = (event->x - m_pan_x) / m_zoom;
+        double y = (event->y - m_pan_y) / m_zoom;
 
         auto output = find_output_port_at(x, y);
         if (output) {
@@ -461,8 +478,8 @@ bool GraphCanvas::on_button_press_event(GdkEventButton* event) {
     }
 
     if (event->button == 3) {
-        double x = event->x / m_zoom;
-        double y = event->y / m_zoom;
+        double x = (event->x - m_pan_x) / m_zoom;
+        double y = (event->y - m_pan_y) / m_zoom;
 
         for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
             auto& conn = *it;
@@ -491,8 +508,8 @@ bool GraphCanvas::on_button_press_event(GdkEventButton* event) {
 
 bool GraphCanvas::on_button_release_event(GdkEventButton* event) {
     if (m_is_dragging && m_drag_source && event->button == 1) {
-        double x = event->x / m_zoom;
-        double y = event->y / m_zoom;
+        double x = (event->x - m_pan_x) / m_zoom;
+        double y = (event->y - m_pan_y) / m_zoom;
 
         auto target = find_input_port_at(x, y);
         if (target && target != m_drag_source) {
@@ -526,15 +543,15 @@ bool GraphCanvas::on_button_release_event(GdkEventButton* event) {
 
 bool GraphCanvas::on_motion_notify_event(GdkEventMotion* event) {
     if (m_is_dragging) {
-        m_drag_current_x = event->x / m_zoom;
-        m_drag_current_y = event->y / m_zoom;
+        m_drag_current_x = (event->x - m_pan_x) / m_zoom;
+        m_drag_current_y = (event->y - m_pan_y) / m_zoom;
         queue_draw();
         return true;
     }
 
     if (m_is_moving_box && m_moving_box) {
-        double x = event->x / m_zoom;
-        double y = event->y / m_zoom;
+        double x = (event->x - m_pan_x) / m_zoom;
+        double y = (event->y - m_pan_y) / m_zoom;
         m_moving_box->x = x - m_box_move_offset_x;
         m_moving_box->y = y - m_box_move_offset_y;
 
@@ -556,8 +573,8 @@ bool GraphCanvas::on_motion_notify_event(GdkEventMotion* event) {
     if (m_is_panning) {
         double dx = event->x - m_pan_start_x;
         double dy = event->y - m_pan_start_y;
-        m_offset_x += dx / m_zoom;
-        m_offset_y += dy / m_zoom;
+        m_pan_x += dx;
+        m_pan_y += dy;
         m_pan_start_x = event->x;
         m_pan_start_y = event->y;
         queue_draw();

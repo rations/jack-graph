@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -MMD -MP $(shell pkg-config --cflags gtkmm-3.0 jack alsa)
+CXXFLAGS = -std=c++17 -Wall -Wextra $(shell pkg-config --cflags gtkmm-3.0 jack alsa) -MMD -MP
 LDFLAGS = $(shell pkg-config --libs gtkmm-3.0 jack alsa)
 
 SOURCES = src/main.cpp src/JackGraph.cpp src/JackClient.cpp \
