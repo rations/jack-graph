@@ -270,11 +270,12 @@ void JackGraph::on_menu_settings() {
                     });
                 });
                 refresh_ports();
+                m_canvas.fit_to_window();
             }
         }
         update_status_bar();
     });
-    
+
     // Callback for Stop (just disconnect, don't reconnect)
     dialog.set_disconnect_callback([this]() {
         if (m_jack.is_connected()) {
@@ -282,6 +283,7 @@ void JackGraph::on_menu_settings() {
             m_jack_connected = false;
         }
         refresh_ports();
+        m_canvas.fit_to_window();
         update_status_bar();
     });
     
