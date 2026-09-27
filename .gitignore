@@ -1,3 +1,18 @@
+# Build outputs
 src/*.o
 src/*.d
-jack-graph
+src/gfx/*.o
+src/gfx/*.d
+src/platform/*.o
+src/platform/*.d
+tools/*.o
+tools/*.d
+/jack-graph
+/tools/uirender
+
+# Release outputs (release-tarball.sh, packaging/build-deb.sh) and the layout audit's frames
+/jack-graph-*.tar.gz
+/jack-graph_*.deb
+/jack-graph.tar.gz
+/ui/
+/build.log

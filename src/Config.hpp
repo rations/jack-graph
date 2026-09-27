@@ -35,6 +35,8 @@ public:
     bool get_realtime() const;
     void set_realtime(bool rt);
 
+    /* jackd's ALSA driver -S: 16-bit samples ("shorts"). Named "synchronous"
+     * only because that is the key every existing config file uses. */
     bool get_synchronous() const;
     void set_synchronous(bool sync);
 
