@@ -36,6 +36,9 @@ std::string Node::full_name() const {
 }
 
 std::string Node::display_name() const {
+    if (!label.empty()) {
+        return label;
+    }
     auto colon = name.find(':');
     if (colon != std::string::npos) {
         return name.substr(colon + 1);

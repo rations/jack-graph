@@ -17,6 +17,12 @@ if [ -f /usr/local/bin/jack-graph ]; then
     echo "Removed /usr/local/bin/jack-graph"
 fi
 
+# --- Remove the bundled fonts ---
+if [ -d /usr/local/share/jack-graph ]; then
+    rm -rf /usr/local/share/jack-graph
+    echo "Removed /usr/local/share/jack-graph"
+fi
+
 # --- Remove desktop entry ---
 if [ -f /usr/share/applications/jack-graph.desktop ]; then
     rm -f /usr/share/applications/jack-graph.desktop
@@ -24,7 +30,7 @@ if [ -f /usr/share/applications/jack-graph.desktop ]; then
 fi
 
 if command -v update-desktop-database &>/dev/null; then
-    update-desktop-database /usr/share/applications/
+    update-desktop-database /usr/share/applications/ || true
 fi
 
 # --- Remove apt-mark hold on qjackctl (apt distros only) ---
@@ -38,7 +44,8 @@ fi
 echo ""
 echo "Jack Graph has been removed."
 echo ""
-echo "Runtime dependencies (jackd2, etc.) have been left in place."
+echo "Your settings in ~/.config/jack-graph and runtime dependencies (jackd2, etc.) have been"
+echo "left in place."
 echo "To remove jackd2 run:  sudo apt remove jackd2   (Debian/Devuan)"
 echo "                       sudo pacman -R jack2      (Arch/Artix)"
 echo "                       sudo xbps-remove jack     (Void)"

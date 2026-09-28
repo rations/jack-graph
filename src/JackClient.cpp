@@ -2,7 +2,7 @@
 #include <cstring>
 #include <algorithm>
 
-JackClient::JackClient() : m_client(nullptr), m_xrun_count(0) {
+JackClient::JackClient() : m_client(nullptr), m_server_gone(false), m_xrun_count(0) {
 }
 
 JackClient::~JackClient() {
@@ -13,6 +13,8 @@ bool JackClient::connect(const std::string& client_name) {
     if (m_client) {
         disconnect();
     }
+
+    m_server_gone.store(false);
 
     jack_status_t status;
     m_client = jack_client_open(client_name.c_str(), (jack_options_t)(JackNullOption | JackNoStartServer), &status);
@@ -26,6 +28,7 @@ bool JackClient::connect(const std::string& client_name) {
     jack_set_sample_rate_callback(m_client, sample_rate_callback, this);
     jack_set_buffer_size_callback(m_client, buffer_size_callback, this);
     jack_set_xrun_callback(m_client, xrun_callback, this);
+    jack_on_shutdown(m_client, shutdown_callback, this);
 
     if (jack_activate(m_client)) {
         jack_client_close(m_client);
@@ -39,15 +42,31 @@ bool JackClient::connect(const std::string& client_name) {
 
 void JackClient::disconnect() {
     if (!m_client) return;
-    
-    // Clear callbacks FIRST to prevent them firing during shutdown
-    m_port_callback = nullptr;
-    m_xrun_callback = nullptr;
-    
-    jack_deactivate(m_client);
+
+    /* Once jack_on_shutdown has fired the server is already gone, so
+     * jack_deactivate would be talking to a socket nothing is answering. Only
+     * the local handle still needs freeing -- and it does still need freeing,
+     * which is why this runs from the main loop rather than from the shutdown
+     * callback itself, where closing the client is not allowed. */
+    if (!m_server_gone.load()) {
+        jack_deactivate(m_client);
+    }
     jack_client_close(m_client);
     m_client = nullptr;
-    
+    m_server_gone.store(false);
+
+    /* Cleared AFTER the close, never before. jack_client_close() does not return
+     * until JACK's notification thread is finished with this client, so once it
+     * has, nothing can still be inside one of these std::functions. Clearing
+     * them first -- as this used to -- meant the notification thread could be
+     * midway through `if (m_shutdown_callback) m_shutdown_callback();` while
+     * this thread destroyed the object it was calling. Rare in general, but the
+     * restart Settings -> Start performs hits exactly that window: the server
+     * goes away precisely while the client is being torn down and rebuilt. */
+    m_port_callback = nullptr;
+    m_xrun_callback = nullptr;
+    m_shutdown_callback = nullptr;
+
     std::lock_guard<std::mutex> lock(m_mutex);
     m_ports.clear();
 }
@@ -59,7 +78,7 @@ std::vector<JackClient::PortInfo> JackClient::get_ports() const {
 
 std::vector<JackClient::ConnectionInfo> JackClient::get_connections() const {
     std::vector<ConnectionInfo> result;
-    if (!m_client) return result;
+    if (!usable()) return result;
 
     std::lock_guard<std::mutex> lock(m_mutex);
     for (const auto& port : m_ports) {
@@ -84,23 +103,36 @@ std::vector<JackClient::ConnectionInfo> JackClient::get_connections() const {
 }
 
 bool JackClient::connect_ports(const std::string& source, const std::string& dest) {
-    if (!m_client) return false;
+    if (!usable()) return false;
     int result = jack_connect(m_client, source.c_str(), dest.c_str());
     return (result == 0 || result == EEXIST);
 }
 
 bool JackClient::disconnect_ports(const std::string& source, const std::string& dest) {
-    if (!m_client) return false;
+    if (!usable()) return false;
     return jack_disconnect(m_client, source.c_str(), dest.c_str()) == 0;
 }
 
 jack_nframes_t JackClient::get_buffer_size() const {
-    if (!m_client) return 0;
+    if (!usable()) return 0;
     return jack_get_buffer_size(m_client);
 }
 
+/* Change frames/period on the running server. This is the one JACK setting that
+ * can be altered without a restart: the server reconfigures the graph and every
+ * client is told the new size through its buffer size callback. Sample rate,
+ * periods/buffer and the interface are ALSA driver parameters fixed when the
+ * driver opens the device, so those still need a stop and start. */
+bool JackClient::set_buffer_size(jack_nframes_t nframes) {
+    if (!usable()) return false;
+    /* JACK requires a power of two and rejects anything else, which would
+     * otherwise look like a silent no-op to the caller. */
+    if (nframes == 0 || (nframes & (nframes - 1)) != 0) return false;
+    return jack_set_buffer_size(m_client, nframes) == 0;
+}
+
 jack_nframes_t JackClient::get_sample_rate() const {
-    if (!m_client) return 0;
+    if (!usable()) return 0;
     return jack_get_sample_rate(m_client);
 }
 
@@ -110,7 +142,7 @@ std::string JackClient::get_actual_client_name() const {
 }
 
 void JackClient::scan_ports() {
-    if (!m_client) return;
+    if (!usable()) return;
 
     std::lock_guard<std::mutex> lock(m_mutex);
     m_ports.clear();
@@ -169,7 +201,7 @@ void JackClient::port_registration_callback(jack_port_id_t port_id, int reg, voi
     auto* self = static_cast<JackClient*>(arg);
     /* Do NOT call scan_ports() here — JACK fires this callback before its own
      * registry is fully updated, so jack_get_ports() may still return the dying
-     * port.  The GTK thread calls scan_ports() in refresh_ports() instead,
+     * port.  The main loop calls scan_ports() in App::refreshPorts() instead,
      * by which time JACK state has settled. */
     if (self && self->m_port_callback) {
         self->m_port_callback();
@@ -207,10 +239,21 @@ int JackClient::buffer_size_callback(jack_nframes_t nframes, void* arg) {
 int JackClient::xrun_callback(void* arg) {
     auto* self = static_cast<JackClient*>(arg);
     if (self) {
-        self->m_xrun_count++;
+        self->m_xrun_count.fetch_add(1);
         if (self->m_xrun_callback) {
             self->m_xrun_callback();
         }
     }
     return 0;
+}
+
+/* JACK's own thread, and by the time this runs the client handle is already
+ * dead: nothing here may call into JACK or touch a widget. It records the fact
+ * and hands off -- App marshals the teardown and the reconnect onto the main
+ * loop through the wake pipe, which is also the only place jack_client_close()
+ * is legal. */
+void JackClient::shutdown_callback(void* arg) {
+    JackClient* self = static_cast<JackClient*>(arg);
+    self->m_server_gone.store(true);
+    if (self->m_shutdown_callback) self->m_shutdown_callback();
 }
